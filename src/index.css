@@ -102,3 +102,9 @@ html * {
 
 .dark .shadow-card { box-shadow: 0 10px 30px rgb(0 0 0 / 0.24); }
 .dark .shadow-float { box-shadow: 0 18px 55px rgb(0 0 0 / 0.36); }
+.dark .hover\:bg-chili-50:hover { background-color: #31221f; }
+.dark .hover\:bg-rice-200:hover { background-color: #26211b; }
+.dark .hover\:bg-amber-100:hover { background-color: #39301d; }
+.dark .hover\:text-chili-500:hover { color: #ff8170; }
+.dark .hover\:border-chili-500:hover { border-color: #ff8170; }
+.dark .hover\:border-chili-500\/30:hover { border-color: rgb(255 129 112 / 0.34); }
