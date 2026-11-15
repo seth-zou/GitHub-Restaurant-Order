@@ -283,6 +283,11 @@ test.describe('夜间模式 - E2E 验收测试', () => {
       await expect(page.getByRole('heading', { name: '鎏金番茄鸳鸯锅' })).toHaveCSS('color', 'rgb(247, 241, 230)')
       await expectReadableAA(page, page.getByRole('heading', { name: '鎏金番茄鸳鸯锅' }))
 
+      const activeCategory = page.getByRole('button', { name: '推荐' })
+      await expect(activeCategory).toBeVisible()
+      await expect(activeCategory).toHaveCSS('background-color', 'rgb(201, 47, 33)')
+      await expectReadableAA(page, activeCategory)
+
       const firstProductCard = page.locator('article').first()
       await expect(firstProductCard).toHaveCSS('background-color', 'rgb(29, 25, 21)')
       await expectReadableAA(page, firstProductCard.getByRole('heading').first())

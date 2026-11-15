@@ -78,7 +78,7 @@ html * {
 .dark .text-emerald-600 { color: #58d39a; }
 
 /* 深色底上的主按钮、进度徽章仍使用高对比前景色 */
-.dark .bg-chili-500.text-white { color: #ffffff; }
+.dark .bg-chili-500.text-white { background-color: #c92f21; color: #ffffff; }
 .dark .bg-amber-400.text-charcoal-900 { color: #211f1c; }
 .dark .bg-rice-200.text-charcoal-900 { color: #f7f1e6; }
 .dark .bg-amber-100.text-charcoal-700 { color: #ded4c4; }
@@ -103,6 +103,7 @@ html * {
 .dark .shadow-card { box-shadow: 0 10px 30px rgb(0 0 0 / 0.24); }
 .dark .shadow-float { box-shadow: 0 18px 55px rgb(0 0 0 / 0.36); }
 .dark .hover\:bg-chili-50:hover { background-color: #31221f; }
+.dark .hover\:bg-chili-600:hover { background-color: #a9231a; }
 .dark .hover\:bg-rice-200:hover { background-color: #26211b; }
 .dark .hover\:bg-amber-100:hover { background-color: #39301d; }
 .dark .hover\:text-chili-500:hover { color: #ff8170; }
