@@ -31,6 +31,19 @@ async function addBrothToCart(page: Page) {
 
 /** 解析浏览器 computed color，用于夜间模式关键文本的 WCAG AA 抽样断言。 */
 function parseComputedColor(value: string) {
+  const hexMatch = value.match(/^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i)
+  if (hexMatch) {
+    const hex = hexMatch[1]!
+    const expanded = hex.length === 3 ? [...hex].map((channel) => channel + channel).join('') : hex
+    const channels = Number.parseInt(expanded.slice(0, 6), 16)
+    return {
+      red: (channels >> 16) & 255,
+      green: (channels >> 8) & 255,
+      blue: channels & 255,
+      alpha: expanded.length === 8 ? Number.parseInt(expanded.slice(6, 8), 16) / 255 : 1,
+    }
+  }
+
   const match = value.match(/rgba?\(([^)]+)\)/)
   if (!match) throw new Error(`无法解析颜色: ${value}`)
 
@@ -117,8 +130,8 @@ async function expectReadableAA(page: Page, element: ReturnType<Page['getByRole'
 
 test.describe('夜间模式 - E2E 验收测试', () => {
   test('TC-001: home/welcome/menu/order/checkout 的主题入口可聚焦并立即切换', async ({ page }) => {
-    for (const route of ROUTES) {
-      await page.goto(route)
+    for (const [index, route] of ROUTES.entries()) {
+      await page.goto(`/?theme-flow=${index}${route.slice(1)}`)
       const toggle = page.getByTestId('theme-toggle')
       await expect(toggle).toBeVisible()
       await expect(toggle).toBeEnabled()
@@ -252,20 +265,20 @@ test.describe('夜间模式 - E2E 验收测试', () => {
 
     await page.getByRole('button', { name: '确认并提交订单' }).click()
     await expect(page).toHaveURL(/#\/order$/)
-    await expect(page.getByText('鎏金番茄鸳鸯锅')).toBeVisible()
+    await expect(page.getByText('鎏金番茄鸳鸯锅').first()).toBeVisible()
   })
 
   test.describe('TC-008: 夜间模式视觉与弹层适配', () => {
     test.use({ colorScheme: 'dark' })
 
     test('TC-008: 夜间模式覆盖核心视图并保持关键文字 WCAG AA', async ({ page }) => {
-      for (const route of ROUTES) {
-        await page.goto(route)
+      for (const [index, route] of ROUTES.entries()) {
+        await page.goto(`/?theme-flow=${index}${route.slice(1)}`)
         await expectThemeMode(page, 'dark')
         await expect(page.locator('body')).toHaveCSS('background-color', 'rgb(18, 16, 13)')
       }
 
-      await page.goto('/#/menu')
+      await page.goto('/?theme-flow=menu#/menu')
       await expect(page.getByRole('heading', { name: '鎏金番茄鸳鸯锅' })).toBeVisible()
       await expect(page.getByRole('heading', { name: '鎏金番茄鸳鸯锅' })).toHaveCSS('color', 'rgb(247, 241, 230)')
       await expectReadableAA(page, page.getByRole('heading', { name: '鎏金番茄鸳鸯锅' }))
@@ -293,7 +306,7 @@ test.describe('夜间模式 - E2E 验收测试', () => {
 
       await addBrothToCart(page)
       await page.getByText(/查看购物车/).click()
-      const cartDialog = page.getByText('本桌购物车').last().locator('..')
+      const cartDialog = page.getByRole('dialog').last()
       await expect(cartDialog).toBeVisible()
       await expect(cartDialog).toHaveCSS('background-color', 'rgb(25, 22, 18)')
 
@@ -326,7 +339,7 @@ test.describe('夜间模式 - E2E 验收测试', () => {
 
     await page.keyboard.press('Escape')
     await expect(page.getByText('桌边服务')).not.toBeVisible()
-    await expect(page.getByText('鎏金番茄鸳鸯锅')).toBeVisible()
+    await expect(page.getByRole('heading', { name: '鎏金番茄鸳鸯锅' })).toBeVisible()
     await expect(page.getByText('本桌购物车').first()).toBeVisible()
   })
 
