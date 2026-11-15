@@ -288,6 +288,13 @@ test.describe('夜间模式 - E2E 验收测试', () => {
       await expect(activeCategory).toHaveCSS('background-color', 'rgb(201, 47, 33)')
       await expectReadableAA(page, activeCategory)
 
+      const searchInput = page.getByPlaceholder('搜索锅底、菜品或饮品')
+      await expect(searchInput).toBeVisible()
+      await searchInput.fill('锅底')
+      await expect(searchInput).toHaveCSS('color', 'rgb(247, 241, 230)')
+      await expectReadableAA(page, searchInput)
+      await searchInput.fill('')
+
       const firstProductCard = page.locator('article').first()
       await expect(firstProductCard).toHaveCSS('background-color', 'rgb(29, 25, 21)')
       await expectReadableAA(page, firstProductCard.getByRole('heading').first())

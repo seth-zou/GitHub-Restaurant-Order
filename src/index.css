@@ -65,6 +65,8 @@ html * {
 .dark .bg-charcoal-900 { background-color: #211f1c; }
 .dark .bg-charcoal-900\/40 { background-color: rgb(0 0 0 / 0.48); }
 
+.dark input { color: #f7f1e6; }
+.dark input::placeholder { color: #b6aca0; }
 .dark .text-charcoal-900 { color: #f7f1e6; }
 .dark .text-charcoal-700 { color: #ded4c4; }
 .dark .text-charcoal-500 { color: #b6aca0; }
