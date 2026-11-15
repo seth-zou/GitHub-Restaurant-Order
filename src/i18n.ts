@@ -277,6 +277,8 @@ const resources = {
         aria_member: 'Membership & Queue',
         aria_console: 'Demo Console',
         aria_lang: 'Switch language',
+        aria_theme_dark: 'Switch to dark mode',
+        aria_theme_light: 'Switch to light mode',
         aria_close: 'Close',
         aria_reduce: 'Decrease',
         aria_increase: 'Increase',
