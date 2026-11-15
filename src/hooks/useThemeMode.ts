@@ -28,6 +28,7 @@ export function useThemeMode() {
       const next: ThemeMode = prev === 'dark' ? 'light' : 'dark'
       try {
         localStorage.setItem(STORAGE_KEY, next)
+        fallbackThemeMode = null
       } catch {
         fallbackThemeMode = next
       }
@@ -39,14 +40,15 @@ export function useThemeMode() {
 }
 
 function getInitialThemeMode(): ThemeMode {
+  // 写入失败后旧存储值不可靠，会话 fallback 必须优先。
+  if (fallbackThemeMode) return fallbackThemeMode
   try {
     const stored = localStorage.getItem(STORAGE_KEY)
     if (stored === 'dark') return 'dark'
     if (stored === 'light') return 'light'
   } catch {
-    // localStorage 不可用时继续检查会话 fallback
+    // localStorage 不可用时降级为系统偏好
   }
-  if (fallbackThemeMode) return fallbackThemeMode
   return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
 }
 

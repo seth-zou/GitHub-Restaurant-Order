@@ -277,6 +277,33 @@ test.describe('夜间模式 - E2E 验收测试', () => {
     await expect(page.getByText('鎏金番茄鸳鸯锅').first()).toBeVisible()
   })
 
+  test('TC-007.1: localStorage 写入失败时会话 fallback 优先于旧存储值', async ({ page }) => {
+    await page.emulateMedia({ colorScheme: 'dark' })
+    await page.addInitScript(() => {
+      Object.defineProperty(window, 'localStorage', {
+        configurable: true,
+        value: {
+          getItem: (key: string) => (key === 'theme-mode' ? 'light' : null),
+          setItem: () => {
+            throw new DOMException('localStorage is full', 'QuotaExceededError')
+          },
+        },
+      })
+    })
+
+    await page.goto('/#/menu')
+    await expectThemeMode(page, 'light')
+    await expect(await page.evaluate(() => localStorage.getItem('theme-mode'))).toBe('light')
+
+    await page.getByTestId('theme-toggle').click()
+    await expectThemeMode(page, 'dark')
+
+    await page.goto('/#/home')
+    await expect(page).toHaveURL(/#\/home$/)
+    await expectThemeMode(page, 'dark')
+    await expect(await page.evaluate(() => localStorage.getItem('theme-mode'))).toBe('light')
+  })
+
   test.describe('TC-008: 夜间模式视觉与弹层适配', () => {
     test.use({ colorScheme: 'dark' })
 
