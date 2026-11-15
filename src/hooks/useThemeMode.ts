@@ -4,6 +4,9 @@ export type ThemeMode = 'light' | 'dark'
 
 const STORAGE_KEY = 'theme-mode'
 
+/** localStorage 不可用时的会话级 fallback，跨路由组件重挂载保持本次用户选择。 */
+let fallbackThemeMode: ThemeMode | null = null
+
 /**
  * 夜间模式状态管理 hook。
  * 优先级：用户选择 > 系统偏好 > 浅色。
@@ -26,7 +29,7 @@ export function useThemeMode() {
       try {
         localStorage.setItem(STORAGE_KEY, next)
       } catch {
-        // localStorage 不可用时降级为内存态，不报错
+        fallbackThemeMode = next
       }
       return next
     })
@@ -41,8 +44,9 @@ function getInitialThemeMode(): ThemeMode {
     if (stored === 'dark') return 'dark'
     if (stored === 'light') return 'light'
   } catch {
-    // localStorage 不可用时降级为系统偏好
+    // localStorage 不可用时继续检查会话 fallback
   }
+  if (fallbackThemeMode) return fallbackThemeMode
   return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
 }
 

@@ -259,6 +259,15 @@ test.describe('夜间模式 - E2E 验收测试', () => {
     await page.getByTestId('theme-toggle').click()
     await expectThemeMode(page, 'light')
 
+    await page.goto('/#/home')
+    await expect(page).toHaveURL(/#\/home$/)
+    await expectThemeMode(page, 'light')
+    await expect(page.getByTestId('theme-toggle')).toHaveAttribute('aria-label', '切换至夜间模式')
+
+    await page.goto('/#/menu')
+    await expect(page).toHaveURL(/#\/menu$/)
+    await expectThemeMode(page, 'light')
+
     await addBrothToCart(page)
     await expect(page.getByRole('heading', { name: '鎏金番茄鸳鸯锅' })).toBeVisible()
     await expect(page.getByText('本桌购物车').first()).toBeVisible()
