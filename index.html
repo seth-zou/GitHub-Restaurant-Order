@@ -15,6 +15,19 @@
         } catch (e) {
           // localStorage 不可用时保持默认中文
         }
+        // 挂载前同步主题，避免刷新时出现闪烁
+        var mode = 'light';
+        try {
+          var storedTheme = localStorage.getItem('theme-mode');
+          if (storedTheme === 'dark' || storedTheme === 'light') mode = storedTheme;
+          else mode = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        } catch (e) {
+          mode = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        }
+        document.documentElement.classList.toggle('dark', mode === 'dark');
+        document.documentElement.dataset.themeMode = mode;
+        var themeMeta = document.querySelector('meta[name="theme-color"]');
+        if (themeMeta) themeMeta.setAttribute('content', mode === 'dark' ? '#12100d' : '#fbf5ea');
       })();
     </script>
   </head>
