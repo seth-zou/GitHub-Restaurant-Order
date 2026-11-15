@@ -38,3 +38,67 @@ html * {
   }
   .scrollbar-none::-webkit-scrollbar { display: none; }
 }
+
+/* 夜间模式全局基础 */
+.dark { color-scheme: dark; }
+.dark ::selection { background: rgb(255 125 109 / 0.28); color: #f7f1e6; }
+
+/* 夜间模式：将现有浅色语义映射为暖色深色体系，保持品牌色识别 */
+.dark body { background: #12100d; }
+.dark .bg-rice-50 { background-color: #191612; }
+.dark .bg-rice-50\/95 { background-color: rgb(25 22 18 / 0.95); }
+.dark .bg-rice-100 { background-color: #171410; }
+.dark .bg-rice-100\/95 { background-color: rgb(23 20 16 / 0.95); }
+.dark .bg-rice-200 { background-color: #26211b; }
+.dark .bg-white { background-color: #1d1915; }
+.dark .bg-white\/55 { background-color: rgb(18 16 13 / 0.72); }
+.dark .bg-white\/80 { background-color: rgb(29 25 21 / 0.82); }
+.dark .bg-white\/90 { background-color: rgb(29 25 21 / 0.9); }
+.dark .bg-white\/95 { background-color: rgb(29 25 21 / 0.95); }
+.dark .bg-white\/10 { background-color: rgb(247 241 230 / 0.1); }
+.dark .bg-white\/20 { background-color: rgb(247 241 230 / 0.1); }
+.dark .bg-chili-50 { background-color: #31221f; }
+.dark .bg-chili-100 { background-color: #3c2523; }
+.dark .bg-amber-100 { background-color: #39301d; }
+.dark .bg-amber-100\/70 { background-color: rgb(245 184 63 / 0.1); }
+.dark .bg-emerald-50 { background-color: #173025; }
+.dark .bg-charcoal-900 { background-color: #211f1c; }
+.dark .bg-charcoal-900\/40 { background-color: rgb(0 0 0 / 0.48); }
+
+.dark .text-charcoal-900 { color: #f7f1e6; }
+.dark .text-charcoal-700 { color: #ded4c4; }
+.dark .text-charcoal-500 { color: #b6aca0; }
+.dark .text-rice-100 { color: #f7f1e6; }
+.dark .text-rice-200 { color: #d9cdb9; }
+.dark .text-white\/30 { color: rgb(255 255 255 / 0.48); }
+.dark .text-white\/40 { color: rgb(255 255 255 / 0.58); }
+.dark .text-chili-500 { color: #ff8170; }
+.dark .text-chili-600 { color: #ff958a; }
+.dark .text-amber-500 { color: #f5b83f; }
+.dark .text-emerald-600 { color: #58d39a; }
+
+/* 深色底上的主按钮、进度徽章仍使用高对比前景色 */
+.dark .bg-chili-500.text-white { color: #ffffff; }
+.dark .bg-amber-400.text-charcoal-900 { color: #211f1c; }
+.dark .bg-rice-200.text-charcoal-900 { color: #f7f1e6; }
+.dark .bg-amber-100.text-charcoal-700 { color: #ded4c4; }
+.dark .bg-chili-50.text-chili-600 { color: #ff958a; }
+
+.dark .border-charcoal-900 { border-color: #f7f1e6; }
+.dark .border-charcoal-900\/5 { border-color: rgb(247 241 230 / 0.08); }
+.dark .border-charcoal-900\/10 { border-color: rgb(247 241 230 / 0.12); }
+.dark .border-chili-500 { border-color: #ff8170; }
+.dark .border-chili-500\/20 { border-color: rgb(255 129 112 / 0.24); }
+.dark .border-chili-500\/30 { border-color: rgb(255 129 112 / 0.34); }
+.dark .border-amber-400\/30 { border-color: rgb(245 184 63 / 0.24); }
+.dark .border-white\/80 { border-color: rgb(247 241 230 / 0.1); }
+.dark .border-white\/15 { border-color: rgb(247 241 230 / 0.14); }
+.dark .ring-chili-50 { --tw-ring-color: #3d2623; }
+.dark .focus\:ring-chili-50:focus { --tw-ring-color: #3d2623; }
+
+.dark .paper-noise {
+  background-image: radial-gradient(rgb(243 230 208 / 0.04) .7px, transparent .7px);
+}
+
+.dark .shadow-card { box-shadow: 0 10px 30px rgb(0 0 0 / 0.24); }
+.dark .shadow-float { box-shadow: 0 18px 55px rgb(0 0 0 / 0.36); }

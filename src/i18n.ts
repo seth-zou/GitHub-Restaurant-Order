@@ -37,6 +37,8 @@ const resources = {
         aria_member: '会员与排号',
         aria_console: '演示控制台',
         aria_lang: '切换语言',
+        aria_theme_dark: '切换至夜间模式',
+        aria_theme_light: '切换至浅色模式',
         aria_close: '关闭',
         aria_reduce: '减少',
         aria_increase: '增加',
