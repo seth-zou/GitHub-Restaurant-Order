@@ -1,8 +1,9 @@
 import { expect, test, type Page } from '@playwright/test'
 
-type ThemeMode = 'light' | 'dark'
+type Preference = 'system' | 'light' | 'dark'
+type Resolved = 'light' | 'dark'
 
-const THEME_META_COLOR: Record<ThemeMode, string> = {
+const THEME_META_COLOR: Record<Resolved, string> = {
   light: '#fbf5ea',
   dark: '#12100d',
 }
@@ -10,16 +11,25 @@ const THEME_META_COLOR: Record<ThemeMode, string> = {
 const ROUTES = ['/#/home', '/#/welcome', '/#/menu', '/#/order', '/#/checkout'] as const
 
 /** 断言 html 状态、meta theme-color 和 DOM 主题类完全一致。 */
-async function expectThemeMode(page: Page, mode: ThemeMode) {
+async function expectTheme(page: Page, resolved: Resolved, preference?: Preference) {
   const root = page.locator('html')
-  await expect(root).toHaveAttribute('data-theme-mode', mode)
-  await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute('content', THEME_META_COLOR[mode])
+  await expect(root).toHaveAttribute('data-theme-mode', resolved)
+  if (preference) await expect(root).toHaveAttribute('data-theme-preference', preference)
+  await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute('content', THEME_META_COLOR[resolved])
 
-  if (mode === 'dark') {
+  if (resolved === 'dark') {
     await expect(root).toHaveClass(/(?:^|\s)dark(?:\s|$)/)
   } else {
     await expect(root).not.toHaveClass(/(?:^|\s)dark(?:\s|$)/)
   }
+}
+
+/** 打开主题设置并选择指定偏好，切换应立即生效且弹层关闭。 */
+async function chooseTheme(page: Page, preference: Preference) {
+  await page.getByTestId('theme-toggle').click()
+  await expect(page.getByRole('dialog')).toBeVisible()
+  await page.getByTestId(`theme-option-${preference}`).click()
+  await expect(page.getByRole('dialog')).toBeHidden()
 }
 
 /** 在点餐页添加一份锅底，用于验证主题切换不影响业务状态和流程。 */
@@ -128,29 +138,34 @@ async function expectReadableAA(page: Page, element: ReturnType<Page['getByRole'
   expect(ratio, `${element} 对比度不足: ${ratio}`).toBeGreaterThanOrEqual(4.5)
 }
 
-test.describe('夜间模式 - E2E 验收测试', () => {
-  test('TC-001: home/welcome/menu/order/checkout 的主题入口可聚焦并立即切换', async ({ page }) => {
+test.describe('主题体验增强 - E2E 验收测试', () => {
+  test('TC-001: 五个视图的主题入口可聚焦，打开设置并即时切换', async ({ page }) => {
     for (const [index, route] of ROUTES.entries()) {
       await page.goto(`/?theme-flow=${index}${route.slice(1)}`)
       const toggle = page.getByTestId('theme-toggle')
       await expect(toggle).toBeVisible()
       await expect(toggle).toBeEnabled()
-      await expect(toggle).toHaveAttribute('aria-label', '切换至夜间模式')
+      await expect(toggle).toHaveAttribute('aria-label', /外观模式：/)
 
       await toggle.focus()
       await expect(toggle).toBeFocused()
       await page.keyboard.press('Enter')
-      await expectThemeMode(page, 'dark')
-      await expect(toggle).toHaveAttribute('aria-label', '切换至浅色模式')
+      await expect(page.getByRole('dialog')).toBeVisible()
+      await expect(page.getByRole('radio')).toHaveCount(3)
+
+      await page.getByTestId('theme-option-dark').click()
+      await expect(page.getByRole('dialog')).toBeHidden()
+      await expectTheme(page, 'dark', 'dark')
+      await expect(toggle).toHaveAttribute('aria-label', /外观模式：夜间/)
       await expect(page).toHaveURL(new RegExp(`${route.slice(1).replace(/\//g, '\\/')}$`))
 
-      await toggle.click()
-      await expectThemeMode(page, 'light')
-      await expect(toggle).toHaveAttribute('aria-label', '切换至夜间模式')
+      await chooseTheme(page, 'light')
+      await expectTheme(page, 'light', 'light')
+      await expect(toggle).toHaveAttribute('aria-label', /外观模式：白天/)
     }
   })
 
-  test('TC-001.1: 主流程切换主题不改变路由、购物车和桌台状态', async ({ page }) => {
+  test('TC-001.1: 切换主题不改变路由、购物车和桌台状态', async ({ page }) => {
     await page.goto('/#/menu')
     await expect(page).toHaveURL(/#\/menu$/)
     await expect(page.getByText('A08 · 大厅')).toBeVisible()
@@ -159,34 +174,37 @@ test.describe('夜间模式 - E2E 验收测试', () => {
     await expect(page.getByRole('heading', { name: '鎏金番茄鸳鸯锅' })).toBeVisible()
     await expect(page.getByText('本桌购物车').first()).toBeVisible()
 
-    await page.getByTestId('theme-toggle').click()
-    await expectThemeMode(page, 'dark')
+    await chooseTheme(page, 'dark')
+    await expectTheme(page, 'dark', 'dark')
     await expect(page).toHaveURL(/#\/menu$/)
     await expect(page.getByText('A08 · 大厅')).toBeVisible()
     await expect(page.getByRole('heading', { name: '鎏金番茄鸳鸯锅' })).toBeVisible()
     await expect(page.getByText('本桌购物车').first()).toBeVisible()
   })
 
-  test.describe('TC-002/TC-003: 默认主题策略', () => {
+  test.describe('TC-002/TC-003: 默认跟随系统偏好', () => {
     test('TC-002: 本地无保存值且系统偏好 dark 时首屏为夜间模式', async ({ page }) => {
       await page.emulateMedia({ colorScheme: 'dark' })
       await page.goto('/#/home')
-      await expectThemeMode(page, 'dark')
+      await expectTheme(page, 'dark', 'system')
+
+      await page.getByTestId('theme-toggle').click()
+      await expect(page.getByTestId('theme-option-system')).toContainText('当前设备：夜间')
     })
 
-    test('TC-003.1: 本地无保存值且系统偏好 light 时首屏为浅色模式', async ({ page }) => {
+    test('TC-003.1: 本地无保存值且系统偏好 light 时首屏为白天模式', async ({ page }) => {
       await page.emulateMedia({ colorScheme: 'light' })
       await page.goto('/#/home')
-      await expectThemeMode(page, 'light')
+      await expectTheme(page, 'light', 'system')
     })
 
-    test('TC-003.2: 系统偏好未声明时首屏为浅色模式', async ({ page }) => {
+    test('TC-003.2: 系统偏好未声明时首屏为白天模式', async ({ page }) => {
       await page.emulateMedia({ colorScheme: 'no-preference' })
       await page.goto('/#/home')
-      await expectThemeMode(page, 'light')
+      await expectTheme(page, 'light', 'system')
     })
 
-    test('TC-003.3: matchMedia 能力不可用时首屏为浅色模式', async ({ page }) => {
+    test('TC-003.3: matchMedia 能力不可用时首屏为白天模式', async ({ page }) => {
       await page.addInitScript(() => {
         Object.defineProperty(window, 'matchMedia', {
           configurable: true,
@@ -195,54 +213,77 @@ test.describe('夜间模式 - E2E 验收测试', () => {
         })
       })
       await page.goto('/#/home')
-      await expectThemeMode(page, 'light')
+      await expectTheme(page, 'light', 'system')
     })
   })
 
-  test.describe('TC-004/TC-005: 保存值优先级和非法值', () => {
+  test.describe('TC-004/TC-005: 保存值优先级、旧值兼容与运行时联动', () => {
     test('TC-004: 系统 dark 时已保存的 light 优先', async ({ page }) => {
       await page.emulateMedia({ colorScheme: 'dark' })
       await page.addInitScript(() => localStorage.setItem('theme-mode', 'light'))
       await page.goto('/#/home')
-      await expectThemeMode(page, 'light')
-      await expect(await page.evaluate(() => localStorage.getItem('theme-mode'))).toBe('light')
+      await expectTheme(page, 'light', 'light')
     })
 
-    test('TC-005.1: 非法保存值在系统 dark 时被忽略', async ({ page }) => {
+    test('TC-005.1: 非法保存值按未保存处理并跟随系统', async ({ page }) => {
       await page.emulateMedia({ colorScheme: 'dark' })
       await page.addInitScript(() => localStorage.setItem('theme-mode', 'not-a-mode'))
       await page.goto('/#/home')
-      await expectThemeMode(page, 'dark')
-      await expect(await page.evaluate(() => localStorage.getItem('theme-mode'))).toBe('not-a-mode')
+      await expectTheme(page, 'dark', 'system')
     })
 
-    test('TC-005.2: 非法保存值在系统 light 时被忽略', async ({ page }) => {
-      await page.emulateMedia({ colorScheme: 'light' })
-      await page.addInitScript(() => localStorage.setItem('theme-mode', 'not-a-mode'))
+    test('TC-005.2: 已保存的 system 跟随系统', async ({ page }) => {
+      await page.emulateMedia({ colorScheme: 'dark' })
+      await page.addInitScript(() => localStorage.setItem('theme-mode', 'system'))
       await page.goto('/#/home')
-      await expectThemeMode(page, 'light')
-      await expect(await page.evaluate(() => localStorage.getItem('theme-mode'))).toBe('not-a-mode')
+      await expectTheme(page, 'dark', 'system')
+    })
+
+    test('TC-005.3: 跟随系统时，系统偏好运行时变化会即时联动', async ({ page }) => {
+      await page.emulateMedia({ colorScheme: 'light' })
+      await page.goto('/#/home')
+      await expectTheme(page, 'light', 'system')
+
+      await page.emulateMedia({ colorScheme: 'dark' })
+      await expectTheme(page, 'dark', 'system')
+
+      await page.emulateMedia({ colorScheme: 'light' })
+      await expectTheme(page, 'light', 'system')
+    })
+
+    test('TC-005.4: 显式选择后不随系统偏好运行时变化', async ({ page }) => {
+      await page.emulateMedia({ colorScheme: 'light' })
+      await page.goto('/#/home')
+      await chooseTheme(page, 'light')
+      await expectTheme(page, 'light', 'light')
+
+      await page.emulateMedia({ colorScheme: 'dark' })
+      await expectTheme(page, 'light', 'light')
+
+      await expect(page.getByTestId('theme-toggle')).toHaveAttribute('aria-label', /外观模式：白天/)
     })
   })
 
-  test('TC-006: 显式切换 dark/light 后刷新分别保持选择', async ({ page }) => {
+  test('TC-006: 显式选择与跟随系统都能在刷新后保持', async ({ page }) => {
     await page.emulateMedia({ colorScheme: 'light' })
     await page.goto('/#/home')
 
-    await page.getByTestId('theme-toggle').click()
-    await expectThemeMode(page, 'dark')
+    await chooseTheme(page, 'dark')
     await page.reload()
-    await expectThemeMode(page, 'dark')
+    await expectTheme(page, 'dark', 'dark')
     await expect(await page.evaluate(() => localStorage.getItem('theme-mode'))).toBe('dark')
 
-    await page.getByTestId('theme-toggle').click()
-    await expectThemeMode(page, 'light')
+    await chooseTheme(page, 'light')
     await page.reload()
-    await expectThemeMode(page, 'light')
-    await expect(await page.evaluate(() => localStorage.getItem('theme-mode'))).toBe('light')
+    await expectTheme(page, 'light', 'light')
+
+    await chooseTheme(page, 'system')
+    await page.reload()
+    await expectTheme(page, 'light', 'system')
+    await expect(await page.evaluate(() => localStorage.getItem('theme-mode'))).toBe('system')
   })
 
-  test('TC-007: localStorage 不可用时主题降级为内存态且点餐流程继续', async ({ page }) => {
+  test('TC-007: localStorage 不可用时降级为会话内存态且点餐流程继续', async ({ page }) => {
     await page.emulateMedia({ colorScheme: 'dark' })
     await page.addInitScript(() => {
       Object.defineProperty(window, 'localStorage', {
@@ -254,19 +295,18 @@ test.describe('夜间模式 - E2E 验收测试', () => {
     })
 
     await page.goto('/#/menu')
-    await expectThemeMode(page, 'dark')
+    await expectTheme(page, 'dark', 'system')
 
-    await page.getByTestId('theme-toggle').click()
-    await expectThemeMode(page, 'light')
+    await chooseTheme(page, 'light')
+    await expectTheme(page, 'light', 'light')
 
     await page.goto('/#/home')
     await expect(page).toHaveURL(/#\/home$/)
-    await expectThemeMode(page, 'light')
-    await expect(page.getByTestId('theme-toggle')).toHaveAttribute('aria-label', '切换至夜间模式')
+    await expectTheme(page, 'light', 'light')
 
     await page.goto('/#/menu')
     await expect(page).toHaveURL(/#\/menu$/)
-    await expectThemeMode(page, 'light')
+    await expectTheme(page, 'light', 'light')
 
     await addBrothToCart(page)
     await expect(page.getByRole('heading', { name: '鎏金番茄鸳鸯锅' })).toBeVisible()
@@ -292,15 +332,14 @@ test.describe('夜间模式 - E2E 验收测试', () => {
     })
 
     await page.goto('/#/menu')
-    await expectThemeMode(page, 'light')
-    await expect(await page.evaluate(() => localStorage.getItem('theme-mode'))).toBe('light')
+    await expectTheme(page, 'light', 'light')
 
-    await page.getByTestId('theme-toggle').click()
-    await expectThemeMode(page, 'dark')
+    await chooseTheme(page, 'dark')
+    await expectTheme(page, 'dark', 'dark')
 
     await page.goto('/#/home')
     await expect(page).toHaveURL(/#\/home$/)
-    await expectThemeMode(page, 'dark')
+    await expectTheme(page, 'dark', 'dark')
     await expect(await page.evaluate(() => localStorage.getItem('theme-mode'))).toBe('light')
   })
 
@@ -310,8 +349,9 @@ test.describe('夜间模式 - E2E 验收测试', () => {
     test('TC-008: 夜间模式覆盖核心视图并保持关键文字 WCAG AA', async ({ page }) => {
       for (const [index, route] of ROUTES.entries()) {
         await page.goto(`/?theme-flow=${index}${route.slice(1)}`)
-        await expectThemeMode(page, 'dark')
+        await expectTheme(page, 'dark', 'system')
         await expect(page.locator('body')).toHaveCSS('background-color', 'rgb(18, 16, 13)')
+        await expect(page.locator('html')).toHaveCSS('background-color', 'rgb(18, 16, 13)')
       }
 
       await page.goto('/?theme-flow=menu#/menu')
@@ -336,9 +376,17 @@ test.describe('夜间模式 - E2E 验收测试', () => {
       await expectReadableAA(page, firstProductCard.getByRole('heading').first())
     })
 
-    test('TC-008.1: 夜间模式服务弹层、演示控制台和移动端底部导航保持暗色语义', async ({ page }) => {
+    test('TC-008.1: 主题设置弹层、服务弹层、演示控制台和移动端底部导航保持暗色语义', async ({ page }) => {
       await page.setViewportSize({ width: 390, height: 844 })
       await page.goto('/#/menu')
+
+      await page.getByTestId('theme-toggle').click()
+      const themeDialog = page.getByRole('dialog')
+      await expect(themeDialog).toBeVisible()
+      await expect(themeDialog).toHaveCSS('background-color', 'rgb(25, 22, 18)')
+      await expectReadableAA(page, page.getByTestId('theme-option-dark'))
+      await expectReadableAA(page, page.getByTestId('theme-option-system'))
+      await page.keyboard.press('Escape')
 
       await page.getByRole('button', { name: '呼叫服务' }).click()
       const serviceDialog = page.getByText('桌边服务').locator('..')
@@ -365,7 +413,7 @@ test.describe('夜间模式 - E2E 验收测试', () => {
     })
   })
 
-  test('TC-009: 夜间模式下键盘焦点、服务弹层和购物车可继续操作', async ({ page }) => {
+  test('TC-009: 夜间模式下键盘焦点、主题弹层和服务弹层可继续操作', async ({ page }) => {
     await page.emulateMedia({ colorScheme: 'dark' })
     await page.goto('/#/menu')
     await addBrothToCart(page)
@@ -374,11 +422,17 @@ test.describe('夜间模式 - E2E 验收测试', () => {
     await toggle.focus()
     await expect(toggle).toBeFocused()
     await page.keyboard.press('Enter')
-    await expectThemeMode(page, 'light')
+    await expect(page.getByRole('dialog')).toBeVisible()
+    await page.keyboard.press('Escape')
+    await expect(page.getByRole('dialog')).toBeHidden()
     await expect(toggle).toBeFocused()
 
-    await page.keyboard.press('Enter')
-    await expectThemeMode(page, 'dark')
+    await chooseTheme(page, 'light')
+    await expectTheme(page, 'light', 'light')
+    await expect(toggle).toBeFocused()
+
+    await chooseTheme(page, 'dark')
+    await expectTheme(page, 'dark', 'dark')
 
     await page.getByRole('button', { name: '呼叫服务' }).click()
     await expect(page.getByText('桌边服务')).toBeVisible()
@@ -391,23 +445,55 @@ test.describe('夜间模式 - E2E 验收测试', () => {
     await expect(page.getByText('本桌购物车').first()).toBeVisible()
   })
 
-  test('TC-010: 夜间模式与老人模式叠加并支持中英文入口反馈', async ({ page }) => {
+  test('TC-010: 夜间模式与老人模式叠加并支持中英文入口与设置文案', async ({ page }) => {
     await page.emulateMedia({ colorScheme: 'dark' })
     await page.goto('/#/menu')
 
     const toggle = page.getByTestId('theme-toggle')
-    await expect(toggle).toHaveAttribute('aria-label', '切换至浅色模式')
+    await expect(toggle).toHaveAttribute('aria-label', /外观模式：跟随系统/)
 
     await page.getByRole('button', { name: '切换语言' }).click()
     await expect(page.locator('html')).toHaveAttribute('lang', 'en')
-    const englishAriaLabel = await toggle.getAttribute('aria-label')
-    expect(englishAriaLabel).toMatch(/switch to (light|night) mode/i)
+    await expect(toggle).toHaveAttribute('aria-label', /Appearance: Follow system/)
+
+    await toggle.click()
+    await expect(page.getByRole('radio')).toHaveCount(3)
+    await expect(page.getByTestId('theme-option-system')).toContainText('Device currently:')
+    await expect(page.getByTestId('theme-option-light')).toContainText('Light')
+    await expect(page.getByTestId('theme-option-dark')).toContainText('Dark')
+    await page.getByTestId('theme-option-dark').click()
 
     const elderlyToggle = page.getByRole('button', { name: '切换至老人模式' })
     await expect(elderlyToggle).toBeVisible()
     await elderlyToggle.click()
     await expect(page.locator('html')).toHaveClass(/(?:^|\s)elderly(?:\s|$)/)
-    await expectThemeMode(page, 'dark')
+    await expectTheme(page, 'dark', 'dark')
     await expect(page.locator('html')).toHaveCSS('font-size', '20px')
+  })
+
+  test('TC-011: 浅色与夜间模式下业务链路均可完成', async ({ page }) => {
+    for (const preference of ['light', 'dark'] as const) {
+      await page.emulateMedia({ colorScheme: preference })
+      await page.goto(`/?flow=${preference}#/home`)
+      await chooseTheme(page, preference)
+
+      await page.getByRole('button', { name: /A08 · 大厅/ }).first().click()
+      await expect(page).toHaveURL(/#\/welcome$/)
+      await page.getByRole('button', { name: '进入点餐' }).click()
+      await expect(page).toHaveURL(/#\/menu$/)
+
+      await addBrothToCart(page)
+      await page.getByRole('button', { name: '确认并提交订单' }).click()
+      await expect(page).toHaveURL(/#\/order$/)
+      await expect(page.getByText('鎏金番茄鸳鸯锅').first()).toBeVisible()
+
+      await page.getByRole('button', { name: '去结账' }).first().click()
+      await expect(page).toHaveURL(/#\/checkout$/)
+      await expectTheme(page, preference, preference)
+
+      await page.goBack()
+      await expect(page).toHaveURL(/#\/order$/)
+      await expectTheme(page, preference, preference)
+    }
   })
 })

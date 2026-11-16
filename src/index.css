@@ -40,7 +40,7 @@ html * {
 }
 
 /* 夜间模式全局基础 */
-.dark { color-scheme: dark; }
+.dark { color-scheme: dark; background-color: #12100d; color: #f7f1e6; }
 .dark ::selection { background: rgb(255 125 109 / 0.28); color: #f7f1e6; }
 
 /* 夜间模式：将现有浅色语义映射为暖色深色体系，保持品牌色识别 */
@@ -97,6 +97,8 @@ html * {
 .dark .border-white\/15 { border-color: rgb(247 241 230 / 0.14); }
 .dark .ring-chili-50 { --tw-ring-color: #3d2623; }
 .dark .focus\:ring-chili-50:focus { --tw-ring-color: #3d2623; }
+.dark .ring-chili-500 { --tw-ring-color: #ff8170; }
+.dark .focus-visible\:ring-chili-500:focus-visible { --tw-ring-color: #ff8170; }
 
 .dark .paper-noise {
   background-image: radial-gradient(rgb(243 230 208 / 0.04) .7px, transparent .7px);
@@ -111,3 +113,5 @@ html * {
 .dark .hover\:text-chili-500:hover { color: #ff8170; }
 .dark .hover\:border-chili-500:hover { border-color: #ff8170; }
 .dark .hover\:border-chili-500\/30:hover { border-color: rgb(255 129 112 / 0.34); }
+.dark .group:hover .group-hover\:text-chili-500 { color: #ff8170; }
+.dark .focus\:border-chili-500\/30:focus { border-color: rgb(255 129 112 / 0.34); }

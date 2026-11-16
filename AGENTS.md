@@ -25,13 +25,15 @@ src/
 ├── state/orderReducer.ts  # 订单/购物车/服务/售罄/支付 reducer
 ├── data/menu.ts           # 菜品/分类/桌台静态数据
 ├── hooks/useElderlyMode.ts# 老人模式：localStorage + html.elderly
-├── hooks/useThemeMode.ts  # 夜间模式：localStorage + html.dark
+├── hooks/useThemeMode.ts  # 三态主题：localStorage + html.dark + 系统偏好联动
 ├── hooks/useViewRoute.ts  # 视图 ↔ URL hash 双向同步（含深链接/非法地址纠正）
 ├── lib/utils.ts           # cn（类名合并）、money（¥ 格式化）
 ├── components/            # 页面组件（HomeView/WelcomeView/MenuView/OrderView/CheckoutView 对应各视图）；通用件在 components/ui/（button、dialog）
 └── assets/                # hotpot/broth/beef/vegetables 图片
 e2e/super-spicy.spec.ts    # 超级辣风险提示 E2E 验收
 e2e/view-routing.spec.ts   # 视图 URL hash 路由 E2E 验收
+e2e/theme-mode.spec.ts     # 三态主题、跟随系统联动、持久化与降级 E2E 验收
+scripts/check-theme-coverage.mjs # 颜色类夜间映射守卫（npm run theme:check）
 index.html                 # 入口，含初始化语言的内联脚本
 tailwind.config.js         # 自定义色板；vite.config.ts 配 base './' 与 @ 别名
 playwright.config.ts       # E2E 配置
@@ -52,14 +54,14 @@ playwright.config.ts       # E2E 配置
 | chili | 50 `#fff1ef` / 100 `#ffddd8` / 500 `#e13b2b` / 600 `#c92f21` / 700 `#a9231a` | 按钮、强调、徽章 |
 | amber | 100 `#fff2c7` / 400 `#f5b83f` / 500 `#e69b18` | 徽章、进度色 |
 
-主题通过 Tailwind `darkMode: 'class'` 与 `html.dark` 控制；现有组件仍优先使用 Tailwind 语义色名，夜间模式在 `src/index.css` 做集中色值映射。默认优先级为用户选择 > 系统偏好 > 浅色，入口使用 `ThemeToggle`。全局颜色/字号变化有 250ms 过渡（`src/index.css`），老人模式切换无需额外动画。
+主题通过 Tailwind `darkMode: 'class'` 与 `html.dark` 控制；现有组件仍优先使用 Tailwind 语义色名，夜间模式在 `src/index.css` 做集中色值映射。偏好取值为 `system`（默认）/ `light` / `dark`，优先级为用户显式选择 > 系统偏好 > 浅色；`system` 下实时跟随 `prefers-color-scheme` 变化。入口使用 `ThemeToggle`（图标按钮 + 「外观模式」弹层），并在 `html` 上同步 `data-theme-mode`（生效模式）与 `data-theme-preference`（用户偏好）。新增颜色类必须有 `.dark` 映射或进入守卫脚本的安全清单，并运行 `npm run theme:check`。全局颜色/字号变化有 250ms 过渡（`src/index.css`），老人模式切换无需额外动画。
 
 ## 编码约定
 
 - 页面组件放 `src/components/`，通用件放 `src/components/ui/`；弹窗用封装的 `Dialog`，按钮用 CVA `Button`（default/secondary/outline/ghost），图标用 lucide-react 并靠 `currentColor` 继承。
 - 样式只用 Tailwind 类名，不用 CSS Modules / styled-components。
 - 新增 i18n 文案在 `src/i18n.ts` 的 zh/en 两处同步添加，按功能分组（`common.`、`menu.`、`cart.`、`order.` 等）。
-- 新增 `localStorage` 持久化一律 `try/catch` 包裹，不可用时降级内存态；现有 key：`i18nextLng`、`elderly-mode`（`true`/`false`）、`theme-mode`（`light`/`dark`）。
+- 新增 `localStorage` 持久化一律 `try/catch` 包裹，不可用时降级内存态；现有 key：`i18nextLng`、`elderly-mode`（`true`/`false`）、`theme-mode`（`system`/`light`/`dark`）。
 - 需要在 React 挂载前设置 html 属性/class 时，扩展 `index.html` 的内联脚本。
 - npm 源默认走 `https://registry.npmmirror.com`（见根目录与 `server/.npmrc`）。
 
@@ -70,6 +72,7 @@ playwright.config.ts       # E2E 配置
 | `npm ci` / `npm install` | 安装依赖（缺 `node_modules` 时先装） |
 | `npm run build` | `tsc -b && vite build`，产物到 `dist/` |
 | `npm run lint` | ESLint，零警告通过 |
+| `npm run theme:check` | 校验颜色类均有夜间映射或安全归类 |
 | `npx tsc -b --noEmit` | 仅类型检查 |
 | `npx playwright test` | E2E，webServer 自动拉起 `npm run dev` |
 

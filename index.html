@@ -16,16 +16,24 @@
           // localStorage 不可用时保持默认中文
         }
         // 挂载前同步主题，避免刷新时出现闪烁
-        var mode = 'light';
+        // 偏好取值：system（默认）| light | dark；旧版本只写入 light/dark，仍然兼容。
+        var preference = 'system';
         try {
           var storedTheme = localStorage.getItem('theme-mode');
-          if (storedTheme === 'dark' || storedTheme === 'light') mode = storedTheme;
-          else mode = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+          if (storedTheme === 'dark' || storedTheme === 'light' || storedTheme === 'system') preference = storedTheme;
         } catch (e) {
-          mode = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+          preference = 'system';
         }
+        var prefersDark = false;
+        try {
+          prefersDark = !!(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+        } catch (e) {
+          prefersDark = false;
+        }
+        var mode = preference === 'system' ? (prefersDark ? 'dark' : 'light') : preference;
         document.documentElement.classList.toggle('dark', mode === 'dark');
         document.documentElement.dataset.themeMode = mode;
+        document.documentElement.dataset.themePreference = preference;
         var themeMeta = document.querySelector('meta[name="theme-color"]');
         if (themeMeta) themeMeta.setAttribute('content', mode === 'dark' ? '#12100d' : '#fbf5ea');
       })();
