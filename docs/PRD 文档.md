@@ -33,7 +33,8 @@ Spec 阶段增量：
 
 - 关闭澄清文档的 TD-1：本次继续使用 `tailwind.config.js` 的 `darkMode: 'class'` 与 `src/index.css` 的集中暗色映射，不引入 CSS 变量 / token 体系；以守卫命令约束新增颜色类。
 - 关闭 TD-2：系统偏好监听同时兼容 `addEventListener` 与旧版 `addListener`，能力不可用时回退白天模式。
-- 原双主题能力已在基线中交付；本文只描述本次增强的行为契约、验收与打标，不重复历史实现说明。
+- 原双主题能力已在基线中交付；本文保留产品意图、范围与验收基线，不重复历史实现说明。
+- 下游开发、自测、E2E 与部署执行契约见 [`需求规格书（Spec).md`](<需求规格书（Spec).md>)。
 
 ## 2. Goals and Non-Goals
 
