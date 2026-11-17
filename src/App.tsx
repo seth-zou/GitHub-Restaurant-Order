@@ -93,11 +93,11 @@ export default function App() {
   }
 
   if (state.view === 'home' || !state.table) {
-    return <HomeView onBind={(table) => dispatch({ type: 'BIND_TABLE', table })} />
+    return <HomeView onBind={(table) => dispatch({ type: 'BIND_TABLE', table })} child={child} onToggleChild={handleToggleChild} language={i18n.language} onToggleLanguage={toggleLanguage} elderly={elderly} onToggleElderly={handleToggleElderly} />
   }
 
   if (state.view === 'welcome') {
-    return <WelcomeView table={state.table!} onEnter={() => dispatch({ type: 'SET_VIEW', view: 'menu' })} />
+    return <WelcomeView table={state.table!} onEnter={() => dispatch({ type: 'SET_VIEW', view: 'menu' })} child={child} onToggleChild={handleToggleChild} language={i18n.language} onToggleLanguage={toggleLanguage} elderly={elderly} onToggleElderly={handleToggleElderly} />
   }
 
   return (

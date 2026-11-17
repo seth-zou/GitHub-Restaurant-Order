@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next'
-import { ArrowRight, MapPin, Sparkles, Store } from 'lucide-react'
+import { Accessibility, ArrowRight, Languages, MapPin, Sparkles, Store } from 'lucide-react'
 import hotpot from '@/assets/hotpot.jpg'
 import { Button } from '@/components/ui/button'
 import { ThemeToggle } from '@/components/ThemeToggle'
@@ -9,16 +9,22 @@ import { tableAreas } from '@/data/menu'
 interface WelcomeViewProps {
   table: string
   onEnter: () => void
+  child?: boolean
+  onToggleChild?: () => void
+  language?: string
+  onToggleLanguage?: () => void
+  elderly?: boolean
+  onToggleElderly?: () => void
 }
 
-export function WelcomeView({ table, onEnter }: WelcomeViewProps) {
+export function WelcomeView({ table, onEnter, child, onToggleChild, language = 'zh', onToggleLanguage, elderly = false, onToggleElderly }: WelcomeViewProps) {
   const { t } = useTranslation()
   const areaKey = tableAreas[table]
   const tableLabel = areaKey ? `${table} · ${t(areaKey)}` : table
 
   return (
     <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-rice-100 paper-noise">
-      <div className="absolute right-4 top-4 z-10 flex gap-2 sm:right-6 sm:top-6"><ChildModeToggle /><ThemeToggle /></div>
+      <div className="absolute right-4 top-4 z-10 flex gap-2 sm:right-6 sm:top-6"><ChildModeToggle enabled={child} onToggle={onToggleChild} /><ThemeToggle /><Button variant="outline" size="icon" onClick={onToggleElderly} aria-label={elderly ? '切换至常规模式' : '切换至老人模式'}><Accessibility size={18} className={elderly ? 'text-chili-500' : ''} /></Button><Button variant="outline" size="sm" onClick={onToggleLanguage} aria-label={t('common.aria_lang')}><Languages size={16} />{language === 'zh' ? 'EN' : '中'}</Button></div>
       <div className="absolute -right-24 -top-24 h-72 w-72 rounded-full bg-chili-100 blur-3xl" />
       <div className="absolute -bottom-24 -left-20 h-72 w-72 rounded-full bg-amber-100 blur-3xl" />
 

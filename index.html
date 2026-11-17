@@ -33,7 +33,12 @@
         try {
           childMode = localStorage.getItem('child-mode') === 'true';
         } catch (e) {
-          childMode = false;
+          // localStorage 不可用时尝试 sessionStorage fallback
+          try {
+            childMode = sessionStorage.getItem('child-mode-fallback') === 'true';
+          } catch (e2) {
+            childMode = false;
+          }
         }
         document.documentElement.classList.toggle('child', childMode);
         document.documentElement.dataset.childMode = childMode ? 'on' : 'off';
