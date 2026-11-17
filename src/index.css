@@ -118,6 +118,8 @@ html * {
  * 选择器统一以 .child 前缀集中映射，组件内不新增未登记色值。
  */
 .child { font-size: 112.5%; }
+/* 老人模式与儿童模式叠加时，保留老人模式更大的 125% 字号 */
+.elderly.child { font-size: 125%; }
 .child .touch-chip { min-height: 48px; min-width: 48px; padding-left: 1.25rem; padding-right: 1.25rem; }
 .child .touch-option { min-height: 48px; min-width: 56px; }
 .child .child-add-btn { min-height: 52px; min-width: 52px; }

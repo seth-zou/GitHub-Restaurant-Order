@@ -62,7 +62,7 @@ export function TopBar({ table, view, serviceCount, language, elderly, child, on
           <Button variant="outline" size="icon" onClick={onConsole} aria-label={t('common.aria_console')}><LayoutDashboard size={18} /></Button>
           <ThemeToggle />
           <ChildModeToggle enabled={child} onToggle={onToggleChild} />
-          <Button variant="outline" size="icon" onClick={onToggleElderly} aria-label={elderly ? '切换至常规模式' : '切换至老人模式'}>
+          <Button variant="outline" size="icon" onClick={onToggleElderly} aria-label={elderly ? t('common.aria_elderly_off') : t('common.aria_elderly_on')}>
             <Accessibility size={18} className={elderly ? 'text-chili-500' : ''} />
           </Button>
           <Button variant="outline" size="sm" onClick={onToggleLanguage} aria-label={t('common.aria_lang')}>
