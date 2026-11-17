@@ -111,3 +111,35 @@ html * {
 .dark .hover\:text-chili-500:hover { color: #ff8170; }
 .dark .hover\:border-chili-500:hover { border-color: #ff8170; }
 .dark .hover\:border-chili-500\/30:hover { border-color: rgb(255 129 112 / 0.34); }
+
+/* ===== 儿童模式（html.child）=====
+ * 与老人模式（html.elderly）、夜间模式（html.dark）独立叠加：
+ * 儿童模式只调触控尺寸、简化展示与暖色氛围，不覆盖夜间模式的色值映射（置于 .dark 之前不参与覆盖）。
+ * 选择器统一以 .child 前缀集中映射，组件内不新增未登记色值。
+ */
+.child { font-size: 112.5%; }
+.child .touch-chip { min-height: 48px; min-width: 48px; padding-left: 1.25rem; padding-right: 1.25rem; }
+.child .touch-option { min-height: 48px; min-width: 56px; }
+.child .child-add-btn { min-height: 52px; min-width: 52px; }
+.child button { min-height: 48px; }
+.child nav button { min-height: 56px; }
+.child .child-card-media { height: 9rem; }
+.child .child-card-body { padding: 1.25rem; }
+.child .child-card-title { font-size: 1.125rem; line-height: 1.5rem; }
+.child .child-price { font-size: 1.5rem; line-height: 2rem; }
+/* 儿童友好配色：暖纸底与主卡外壳统一往奶油黄偏移，辣红仍只用于价格与主操作 */
+.child body { background: #fdf6e4; }
+.child .bg-rice-100 { background-color: #fdf6e4; }
+.child .bg-rice-100\/95 { background-color: rgb(253 246 228 / 0.95); }
+.child .bg-rice-200 { background-color: #f9eccb; }
+.child .paper-noise { background-image: radial-gradient(rgba(245, 184, 63, .14) .8px, transparent .8px); }
+/* 儿童模式弱化装饰性模糊光斑，减少视觉干扰 */
+.child .blur-3xl { opacity: 0.5; }
+/* 儿童模式下按钮统一大圆角，更亲和 */
+.child .touch-chip, .child .child-add-btn { border-radius: 9999px; }
+/* 夜间 + 儿童模式同时开启时，夜间底色优先，儿童模式只保留尺寸与简化，不覆盖颜色 */
+.dark.child body { background: #12100d; }
+.dark.child .bg-rice-100 { background-color: #171410; }
+.dark.child .bg-rice-100\/95 { background-color: rgb(23 20 16 / 0.95); }
+.dark.child .bg-rice-200 { background-color: #26211b; }
+.dark.child .paper-noise { background-image: radial-gradient(rgb(243 230 208 / 0.04) .7px, transparent .7px); }

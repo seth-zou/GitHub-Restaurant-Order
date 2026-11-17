@@ -3,6 +3,7 @@ import { ArrowRight, MapPin, Sparkles, Store } from 'lucide-react'
 import hotpot from '@/assets/hotpot.jpg'
 import { Button } from '@/components/ui/button'
 import { ThemeToggle } from '@/components/ThemeToggle'
+import { ChildModeToggle } from '@/components/ChildModeToggle'
 import { tableAreas } from '@/data/menu'
 
 interface WelcomeViewProps {
@@ -17,7 +18,7 @@ export function WelcomeView({ table, onEnter }: WelcomeViewProps) {
 
   return (
     <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-rice-100 paper-noise">
-      <div className="absolute right-4 top-4 z-10 sm:right-6 sm:top-6"><ThemeToggle /></div>
+      <div className="absolute right-4 top-4 z-10 flex gap-2 sm:right-6 sm:top-6"><ChildModeToggle /><ThemeToggle /></div>
       <div className="absolute -right-24 -top-24 h-72 w-72 rounded-full bg-chili-100 blur-3xl" />
       <div className="absolute -bottom-24 -left-20 h-72 w-72 rounded-full bg-amber-100 blur-3xl" />
 
