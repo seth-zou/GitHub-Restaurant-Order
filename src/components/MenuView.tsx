@@ -1,21 +1,24 @@
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { AlertTriangle, Baby, Check, Flame, Plus, Search, Sparkles, Users } from 'lucide-react'
+import { AlertTriangle, Baby, Check, Flame, Plus, Search, Soup, Sparkles, Users } from 'lucide-react'
 import { categories, products } from '@/data/menu'
 import { isSpicyForChildren } from '@/hooks/useChildMode'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { money, uid } from '@/lib/utils'
-import type { CartItem, Product } from '@/types'
+import type { CartItem, HotpotBaseSelection, Product } from '@/types'
 
 interface MenuViewProps {
   child: boolean
   diners: string[]
   soldOut: string[]
+  hotpotBaseIds: string[]
   onAdd: (item: CartItem) => void
+  /** 从菜单规格页进入底料环节：携带已选规格（含辣度） */
+  onPickBase: (preset?: HotpotBaseSelection) => void
 }
 
-export function MenuView({ child, diners, soldOut, onAdd }: MenuViewProps) {
+export function MenuView({ child, diners, soldOut, hotpotBaseIds, onAdd, onPickBase }: MenuViewProps) {
   const { t } = useTranslation()
   const [showSpicy, setShowSpicy] = useState(false)
   const [category, setCategory] = useState('menu.cat.recommend')
@@ -46,7 +49,7 @@ export function MenuView({ child, diners, soldOut, onAdd }: MenuViewProps) {
     setShowRiskWarning(false)
   }
 
-  // 儿童模式展示简化：含“超级辣”的锅底默认隐藏，用户可手动展开。
+  // 儿童模式展示简化：含"超级辣"的锅底默认隐藏，用户可手动展开。
   const spicyProducts = useMemo(() => products.filter(isSpicyForChildren), [])
   const childHiddenCount = useMemo(() => spicyProducts.filter((product) => !soldOut.includes(product.id)).length, [spicyProducts, soldOut])
 
@@ -66,15 +69,27 @@ export function MenuView({ child, diners, soldOut, onAdd }: MenuViewProps) {
     setSpicy(product.options?.spicy?.[0] || '')
   }
 
-  const addSelected = (orderedBy = diner) => {
-    if (!selected) return
+  const buildSelectedItem = (): CartItem => {
+    if (!selected) throw new Error('no selected product')
     const portionFactor = portion === 'menu.option.half' ? 0.58 : 1
     const specParts = [portion, flavor, spicy].filter(Boolean).map((key) => t(key))
     if (spicy === 'menu.option.super_spicy') {
       specParts.push(t('cart.confirmed_risk'))
     }
     const spec = specParts.join(' · ') || t('menu.standard')
-    onAdd({ uid: uid(), productId: selected.id, name: t(selected.name), price: Math.round(selected.price * portionFactor), quantity: 1, image: selected.image, spec, orderedBy })
+    return { uid: uid(), productId: selected.id, name: t(selected.name), price: Math.round(selected.price * portionFactor), quantity: 1, image: selected.image, spec, orderedBy: diner }
+  }
+
+  const addSelected = (orderedBy = diner) => {
+    if (!selected) return
+    if (selected.isHotpotBase) {
+      // 底料从菜单进入规格：确认后转为本桌底料选择（进入底料环节确认），不直接作为普通菜品加购
+      const item = buildSelectedItem()
+      setSelected(null)
+      onPickBase({ productId: String(item.productId), spec: String(item.spec) })
+      return
+    }
+    onAdd(orderedBy !== diner ? { ...buildSelectedItem(), orderedBy } : buildSelectedItem())
     setSelected(null)
   }
 
@@ -119,15 +134,16 @@ export function MenuView({ child, diners, soldOut, onAdd }: MenuViewProps) {
         {visible.map((product, index) => {
           const unavailable = soldOut.includes(product.id)
           return (
-            <article key={product.id} className="group animate-rise overflow-hidden rounded-3xl border border-charcoal-900/5 bg-white shadow-card transition hover:-translate-y-1" style={{ animationDelay: `${index * 40}ms` }}>
+            <article key={product.id} className={`group animate-rise overflow-hidden rounded-3xl border bg-white shadow-card transition hover:-translate-y-1 ${product.isHotpotBase ? 'border-amber-400/40' : 'border-charcoal-900/5'}`} style={{ animationDelay: `${index * 40}ms` }}>
               <div className="relative h-40 overflow-hidden child-card-media">
                 <img src={product.image} alt={t(product.name)} className={`h-full w-full object-cover transition duration-500 group-hover:scale-105 ${unavailable ? 'grayscale' : ''}`} />
                 {!child && <div className="absolute inset-0 bg-gradient-to-t from-charcoal-900/45 to-transparent" />}
                 {product.badge && !child && <span className="absolute left-3 top-3 rounded-full bg-amber-400 px-3 py-1 text-xs font-extrabold text-charcoal-900">{t(product.badge)}</span>}
+                {product.isHotpotBase && <span className="absolute right-3 top-3 flex items-center gap-1 rounded-full bg-white/90 px-2 py-1 text-xs font-extrabold text-chili-600">{hotpotBaseIds.includes(product.id) ? <Check size={13} /> : <Soup size={13} />}{hotpotBaseIds.includes(product.id) ? t('hotpot_base.entry_change') : t('hotpot_base.entry_select')}</span>}
                 {unavailable && <span className="absolute inset-0 flex items-center justify-center bg-white/55 text-lg font-extrabold text-charcoal-900 backdrop-blur-sm">{t('menu.sold_out')}</span>}
                 {product.orderedCount && !child && <span className="absolute bottom-3 left-3 flex items-center gap-1 rounded-full bg-white/90 px-2 py-1 text-xs font-bold text-chili-600"><Check size={13} />{t('menu.ordered_table', { count: product.orderedCount })}</span>}
               </div>
-              <div className="child-card-body p-4"><div className="flex items-start justify-between gap-3"><div><h3 className="child-card-title font-extrabold text-charcoal-900">{t(product.name)}</h3>{!child && <p className="mt-1 line-clamp-1 text-xs text-charcoal-500">{t(product.description)}</p>}</div><Button size="icon" disabled={unavailable} onClick={() => openSpec(product)} className="child-add-btn h-10 w-10 shrink-0 rounded-full" aria-label={t('menu.add_dish_aria', { name: t(product.name) })}><Plus size={18} /></Button></div><p className="child-price mt-4 text-xl font-extrabold text-chili-500">{money(product.price)} <small className="text-xs font-medium text-charcoal-500">{child ? t('menu.per_portion') : t('menu.from')}</small></p></div>
+              <div className="child-card-body p-4"><div className="flex items-start justify-between gap-3"><div><h3 className="child-card-title font-extrabold text-charcoal-900">{t(product.name)}</h3>{!child && <p className="mt-1 line-clamp-1 text-xs text-charcoal-500">{t(product.description)}</p>}{product.isHotpotBase && <p className="mt-1 text-xs font-semibold text-amber-500">{t('menu.base_pick_hint')}</p>}</div><Button size="icon" variant={product.isHotpotBase ? 'secondary' : 'default'} disabled={unavailable} onClick={() => openSpec(product)} aria-label={product.isHotpotBase ? t('hotpot_base.choose_base', { name: t(product.name) }) : t('menu.add_dish_aria', { name: t(product.name) })} className="child-add-btn h-10 w-10 shrink-0 rounded-full">{product.isHotpotBase ? <Soup size={18} /> : <Plus size={18} />}</Button></div><p className="child-price mt-4 text-xl font-extrabold text-chili-500">{money(product.price)} <small className="text-xs font-medium text-charcoal-500">{child ? t('menu.per_portion') : t('menu.from')}</small></p></div>
             </article>
           )
         })}
@@ -135,12 +151,15 @@ export function MenuView({ child, diners, soldOut, onAdd }: MenuViewProps) {
 
       <Dialog open={!!selected} onOpenChange={(open) => { if (!open) { setSelected(null); setShowRiskWarning(false) } }}>
         <DialogContent title={selected ? t(selected.name) : ''}>
+          {selected?.isHotpotBase && (
+            <p className="mt-2 rounded-xl bg-amber-100 px-3 py-2 text-xs font-semibold text-charcoal-700">{t('hotpot_base.from_menu_hint')}</p>
+          )}
           {selected && child && <>
             <div className="mt-4 flex gap-4 rounded-2xl bg-white p-3"><img src={selected.image} alt={t(selected.name)} className="h-24 w-24 rounded-xl object-cover" /><div><p className="text-sm leading-6 text-charcoal-500">{t(selected.description)}</p><p className="mt-2 text-xl font-extrabold text-chili-500">{money(selected.price)} <small className="text-xs font-medium text-charcoal-500">{t('menu.per_portion')}</small></p></div></div>
             {selected.options?.portion && <OptionRow label={t('menu.select_portion')} options={selected.options.portion} value={portion} onChange={setPortion} t={t} />}
             {selected.options?.flavor && <OptionRow label={t('menu.select_flavor')} options={selected.options.flavor} value={flavor} onChange={setFlavor} t={t} />}
             {selected.options?.spicy && <OptionRow label={t('menu.select_spicy')} icon={<Flame size={15} className="text-chili-500" />} options={selected.options.spicy} value={spicy} onChange={handleSpicyChange} t={t} disabledOptions={['menu.option.super_spicy']} />}
-            <Button onClick={() => addSelected(diners[0])} className="mt-6 w-full child-add-btn"><Plus size={17} />{t('menu.child_add_to_cart')}</Button>
+            <Button onClick={() => addSelected(diners[0])} className="mt-6 w-full child-add-btn"><Plus size={17} />{selected.isHotpotBase ? t('hotpot_base.add_as_base') : t('menu.child_add_to_cart')}</Button>
           </>}
           {selected && !child && <>
             <div className="mt-4 flex gap-4 rounded-2xl bg-white p-3"><img src={selected.image} alt={t(selected.name)} className="h-24 w-24 rounded-xl object-cover" /><div><p className="text-sm leading-6 text-charcoal-500">{t(selected.description)}</p><p className="mt-2 text-xl font-extrabold text-chili-500">{money(selected.price)} <small className="text-xs font-medium text-charcoal-500">{t('menu.from')}</small></p></div></div>
@@ -148,7 +167,7 @@ export function MenuView({ child, diners, soldOut, onAdd }: MenuViewProps) {
             {selected.options?.flavor && <OptionRow label={t('menu.select_flavor')} options={selected.options.flavor} value={flavor} onChange={setFlavor} t={t} />}
             {selected.options?.spicy && <OptionRow label={t('menu.select_spicy')} icon={<Flame size={15} className="text-chili-500" />} options={selected.options.spicy} value={spicy} onChange={handleSpicyChange} t={t} />}
             <div className="mt-5"><p className="mb-3 flex items-center gap-2 text-sm font-bold text-charcoal-900"><Users size={16} />{t('menu.who_ordered')}</p><div className="flex gap-2">{diners.map((name) => <button key={name} onClick={() => setDiner(name)} className={`rounded-full px-4 py-2 text-sm font-bold ${diner === name ? 'bg-amber-400 text-charcoal-900' : 'bg-white text-charcoal-500'}`}>{name}</button>)}</div></div>
-            <Button onClick={() => addSelected()} className="mt-6 w-full"><Plus size={17} />{t('menu.add_to_cart')}</Button>
+            <Button onClick={addSelected} className="mt-6 w-full"><Plus size={17} />{selected.isHotpotBase ? t('hotpot_base.add_as_base') : t('menu.add_to_cart')}</Button>
           </>}
         </DialogContent>
       </Dialog>

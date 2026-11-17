@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useReducer, useState } from 'react'
+import { useCallback, useEffect, useReducer, useRef, useState } from 'react'
 import i18next from 'i18next'
 import { useTranslation } from 'react-i18next'
 import { ClipboardList, ConciergeBell, LayoutDashboard, Menu as MenuIcon, ShoppingBasket } from 'lucide-react'
@@ -7,6 +7,7 @@ import { WelcomeView } from '@/components/WelcomeView'
 import { CartPanel } from '@/components/CartPanel'
 import { CheckoutView } from '@/components/CheckoutView'
 import { DemoConsole } from '@/components/DemoConsole'
+import { HotpotBaseDialog } from '@/components/HotpotBaseDialog'
 import { MenuView } from '@/components/MenuView'
 import { OrderView } from '@/components/OrderView'
 import { ServiceSheet } from '@/components/ServiceSheet'
@@ -18,8 +19,9 @@ import { useChildMode } from '@/hooks/useChildMode'
 import { initialViewFromHash, useViewRoute } from '@/hooks/useViewRoute'
 import { orderReducer, initialState } from '@/state/orderReducer'
 import { products } from '@/data/menu'
+import { basesTotal, describeBases, hasSelectableBases, isBaseSelectionValid } from '@/lib/hotpot'
 import { money } from '@/lib/utils'
-import type { AppState, ViewName } from '@/types'
+import type { AppState, HotpotBaseSelection, ViewName } from '@/types'
 
 function createInitialState(): AppState {
   const search = new URLSearchParams(window.location.search)
@@ -29,13 +31,27 @@ function createInitialState(): AppState {
   if (search.get('preview') === 'menu') {
     const product = products[2]
     const spec = [i18next.t('menu.option.full'), i18next.t('menu.option.original')].join(' · ')
+    const baseProduct = products[0]
+    const bases = [{ productId: baseProduct.id, spec: i18next.t('hotpot_base.spec', { name: i18next.t(baseProduct.name) }) }]
+    const item = { uid: 'preview-item', productId: product.id, name: i18next.t(product.name), price: product.price, quantity: 1, image: product.image, spec, orderedBy: '姚乾' }
     return {
       ...initialState,
       table: 'A08',
       view: 'menu',
-      cart: [{ uid: 'preview-item', productId: product.id, name: i18next.t(product.name), price: product.price, quantity: 1, image: product.image, spec, orderedBy: '姚乾' }],
+      hotpotBases: bases,
+      orderBases: bases,
+      // 预览直接落到订单/结账时也需要至少一条菜品，贴近真实下单后的订单详情
+      orderItems: requestedView === 'order' || requestedView === 'checkout'
+        ? [{ ...item, uid: 'preview-order-item', stage: 'submitted' as const }]
+        : [],
+      cart: [item],
       lastMessage: initialState.lastMessage,
     }
+  }
+
+  // preview=base：直接展示进入点餐页自动弹出的底料必选环节（用于设计评审/截图）
+  if (search.get('preview') === 'base') {
+    return { ...initialState, table: 'A08', view: 'menu' }
   }
 
   // 深链接：直接以 #/welcome 等地址打开时，先绑定示例桌台再进入对应视图；
@@ -55,6 +71,14 @@ export default function App() {
   const [serviceOpen, setServiceOpen] = useState(false)
   const [consoleOpen, setConsoleOpen] = useState(false)
   const [cartOpen, setCartOpen] = useState(false)
+  const [baseOpen, setBaseOpen] = useState(false)
+  // 未确认底料且尚未提交过订单时为“首次必选”（不可关闭）；编辑/已提交订单为可取消模式
+  const [baseRequiredLock, setBaseRequiredLock] = useState(false)
+  const [baseWarning, setBaseWarning] = useState(false)
+  // 从菜单规格页选择底料时的携带规格（含辣度/口味，已确认风险等）
+  const [presetBase, setPresetBase] = useState<HotpotBaseSelection | null>(null)
+  const baseRequired = hasSelectableBases(state.soldOut)
+  const baseValid = !baseRequired || isBaseSelectionValid(state.hotpotBases, state.soldOut)
   const cartTotal = state.cart.reduce((sum, item) => sum + item.price * item.quantity, 0)
   const waitingServices = state.services.filter((service) => service.status === 'waiting').length
 
@@ -62,6 +86,29 @@ export default function App() {
   const canView = useCallback((view: ViewName) => view === 'home' || !!state.table, [state.table])
   const navigate = useCallback((view: ViewName) => dispatch({ type: 'SET_VIEW', view }), [])
   useViewRoute(state.view, { onNavigate: navigate, canView })
+
+  // 仅“首次进入点餐页”自动弹出底料必选；用户主动取消底料后停在本页并给阻断提示，不反复强制弹窗
+  const autoPromptedRef = useRef(false)
+  useEffect(() => {
+    if (state.view !== 'menu') {
+      autoPromptedRef.current = false
+      return
+    }
+    if (baseRequired && !state.hotpotBases.length && !autoPromptedRef.current) {
+      autoPromptedRef.current = true
+      setBaseRequiredLock(true)
+      setBaseOpen(true)
+    }
+  }, [state.view, baseRequired, state.hotpotBases.length])
+
+  // 已选底料变为售罄：提示重新选择，避免带失效底料继续
+  useEffect(() => {
+    const invalid = state.hotpotBases.length > 0 && !isBaseSelectionValid(state.hotpotBases, state.soldOut)
+    if (invalid) {
+      dispatch({ type: 'SET_HOTPOT_BASES', bases: [] })
+      dispatch({ type: 'SET_MESSAGE', message: t('hotpot_base.soldout_reset') })
+    }
+  }, [state.soldOut, state.hotpotBases, t])
 
   useEffect(() => {
     document.documentElement.lang = i18n.language === 'zh' ? 'zh-CN' : 'en'
@@ -76,9 +123,35 @@ export default function App() {
   }, [i18n.language, t])
 
   const changeView = (view: ViewName) => dispatch({ type: 'SET_VIEW', view })
+  const openBasePicker = (preset?: HotpotBaseSelection) => {
+    setPresetBase(preset ?? null)
+    setBaseRequiredLock(false)
+    setBaseOpen(true)
+    setBaseWarning(false)
+  }
+  const confirmBases = (bases: HotpotBaseSelection[]) => {
+    dispatch({ type: 'SET_HOTPOT_BASES', bases })
+    if (bases.length) {
+      setBaseWarning(false)
+      dispatch({ type: 'SET_MESSAGE', message: t('message.hotpot_base_selected') })
+    } else {
+      dispatch({ type: 'SET_MESSAGE', message: t('message.hotpot_base_cleared') })
+    }
+  }
   const submitOrder = () => {
+    if (!baseValid) {
+      setBaseWarning(true)
+      return
+    }
     dispatch({ type: 'SUBMIT_ORDER' })
     setCartOpen(false)
+  }
+  const goCheckout = () => {
+    if (!baseValid) {
+      setBaseWarning(true)
+      return
+    }
+    changeView('checkout')
   }
   const toggleLanguage = () => {
     i18n.changeLanguage(i18n.language === 'zh' ? 'en' : 'zh')
@@ -120,11 +193,11 @@ export default function App() {
       {state.view === 'menu' && (
         <main className="mx-auto grid max-w-7xl gap-6 px-4 py-5 pb-28 lg:grid-cols-3 lg:px-6 lg:py-7 lg:pb-8">
           <div className="lg:col-span-2">
-            <MenuView child={child} diners={state.diners} soldOut={state.soldOut} onAdd={(item) => dispatch({ type: 'ADD_CART', item })} />
+            <MenuView child={child} diners={state.diners} soldOut={state.soldOut} hotpotBaseIds={state.hotpotBases.map((base) => base.productId)} onAdd={(item) => dispatch({ type: 'ADD_CART', item })} onPickBase={(spec) => openBasePicker(spec)} />
           </div>
           <aside className="hidden lg:block">
             <div className="sticky top-28">
-              <CartPanel items={state.cart} onQuantity={(uid, delta) => dispatch({ type: 'CHANGE_QTY', uid, delta })} onSubmit={submitOrder} />
+              <CartPanel items={state.cart} bases={state.hotpotBases} showBaseWarning={baseWarning || !baseValid} baseReady={baseValid} onQuantity={(uid, delta) => dispatch({ type: 'CHANGE_QTY', uid, delta })} onPickBase={openBasePicker} onSubmit={submitOrder} />
               <div className="mt-4 rounded-2xl border border-amber-400/30 bg-amber-100/70 p-4 text-sm text-charcoal-700">
                 <p className="font-bold">{t('common.collab_title')}</p>
                 <p className="mt-1 leading-6 text-charcoal-500">{t('common.collab_desc')}</p>
@@ -137,15 +210,26 @@ export default function App() {
       {state.view === 'order' && (
         <OrderView
           items={state.orderItems}
+          bases={state.orderBases.length ? state.hotpotBases : state.orderBases}
           stage={state.orderStage}
           onAddMore={() => changeView('menu')}
           onCancel={(uid) => dispatch({ type: 'REQUEST_CANCEL', uid })}
-          onCheckout={() => changeView('checkout')}
+          onChangeBase={openBasePicker}
+          onCheckout={goCheckout}
         />
       )}
 
       {state.view === 'checkout' && (
-        <CheckoutView items={state.orderItems} paid={state.paid} onPay={() => dispatch({ type: 'PAY' })} onBack={() => changeView('order')} />
+        <CheckoutView
+          items={state.orderItems}
+          basesTotal={basesTotal(state.orderBases)}
+          onRemoveBases={openBasePicker}
+          basesLabel={describeBases(state.orderBases, t)}
+          basesMissing={!state.orderBases.length}
+          paid={state.paid}
+          onPay={() => dispatch({ type: 'PAY' })}
+          onBack={() => changeView('order')}
+        />
       )}
 
       <ServiceSheet open={serviceOpen} requests={state.services} onOpenChange={setServiceOpen} onCall={(service) => dispatch({ type: 'CALL_SERVICE', service })} />
@@ -162,9 +246,18 @@ export default function App() {
         onReset={() => { dispatch({ type: 'RESET' }); setConsoleOpen(false) }}
       />
 
+      <HotpotBaseDialog open={baseOpen} preset={presetBase ? { productId: presetBase.productId, spec: presetBase.spec } : null} value={state.hotpotBases.map((base) => ({ productId: base.productId, spec: base.spec }))} soldOut={state.soldOut} required={baseRequiredLock} onOpenChange={(next) => {
+        setBaseOpen(next)
+        if (!next) {
+          // 关闭即丢弃“从菜单规格携带”的预置值，避免下次打开时被旧的预置覆盖
+          setBaseRequiredLock(false)
+          setPresetBase(null)
+        }
+      }} onConfirm={confirmBases} />
+
       <Dialog open={cartOpen} onOpenChange={setCartOpen}>
         <DialogContent title={t('cart.dialog_title')}>
-          <div className="mt-5"><CartPanel compact items={state.cart} onQuantity={(uid, delta) => dispatch({ type: 'CHANGE_QTY', uid, delta })} onSubmit={submitOrder} /></div>
+          <div className="mt-5"><CartPanel compact items={state.cart} bases={state.hotpotBases} showBaseWarning={baseWarning || !baseValid} baseReady={baseValid} onQuantity={(uid, delta) => dispatch({ type: 'CHANGE_QTY', uid, delta })} onPickBase={openBasePicker} onSubmit={submitOrder} /></div>
         </DialogContent>
       </Dialog>
 

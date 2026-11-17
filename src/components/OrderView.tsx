@@ -1,8 +1,9 @@
 import { useTranslation } from 'react-i18next'
 import { Check, ChefHat, ChevronRight, Clock3, Plus, ReceiptText, RotateCcw, UtensilsCrossed } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { HotpotBaseSummary } from '@/components/HotpotBaseSummary'
 import { money } from '@/lib/utils'
-import type { OrderItem, OrderStage } from '@/types'
+import type { HotpotBaseSelection, OrderItem, OrderStage } from '@/types'
 
 const stageIcons: Record<OrderStage, typeof Check> = {
   submitted: ReceiptText,
@@ -15,13 +16,15 @@ const rank: Record<OrderStage, number> = { submitted: 0, accepted: 1, cooking: 2
 
 interface OrderViewProps {
   items: OrderItem[]
+  bases: HotpotBaseSelection[]
   stage: OrderStage
   onAddMore: () => void
   onCancel: (uid: string) => void
+  onChangeBase: () => void
   onCheckout: () => void
 }
 
-export function OrderView({ items, stage, onAddMore, onCancel, onCheckout }: OrderViewProps) {
+export function OrderView({ items, bases, stage, onAddMore, onCancel, onChangeBase, onCheckout }: OrderViewProps) {
   const { t } = useTranslation()
   const total = items.filter((item) => item.cancelState !== 'approved').reduce((sum, item) => sum + item.price * item.quantity, 0)
 
@@ -42,10 +45,15 @@ export function OrderView({ items, stage, onAddMore, onCancel, onCheckout }: Ord
               return <div key={id} className="relative flex gap-4 pb-7 last:pb-0">{index < stageKeys.length - 1 && <span className={`absolute left-4 top-8 h-full w-px ${active && index < rank[stage] ? 'bg-amber-400' : 'bg-white/15'}`} />}<span className={`relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${active ? 'bg-amber-400 text-charcoal-900' : 'bg-white/10 text-white/40'}`}><Icon size={15} /></span><div><p className={`font-bold ${active ? 'text-white' : 'text-white/40'}`}>{t(`order.stage.${id}.label`)}</p><p className={`mt-1 text-xs ${active ? 'text-rice-200' : 'text-white/30'}`}>{active ? t(`order.stage.${id}.note`) : t('order.waiting')}</p></div></div>
             })}
           </div>
+          <div className="mt-6 rounded-2xl bg-white/10 p-3">
+            <p className="text-xs font-bold text-amber-400">{t('hotpot_base.order_section')}</p>
+            <p className="mt-1 text-sm font-semibold text-white">{bases.length ? bases.map((base) => t(`menu.${base.productId}.name`)).join(' + ') : t('hotpot_base.not_selected')}</p>
+          </div>
         </section>
 
         <section className="rounded-3xl bg-white p-5 shadow-card lg:col-span-3">
           <div className="flex items-center justify-between"><div><h2 className="text-lg font-extrabold text-charcoal-900">{t('order.items_title')}</h2><p className="mt-1 text-xs text-charcoal-500">{t('order.order_no')}</p></div><span className="rounded-full bg-chili-50 px-3 py-1 text-xs font-bold text-chili-600">{t('order.item_count', { count: items.length })}</span></div>
+          <div className="mt-4"><HotpotBaseSummary bases={bases} onChange={onChangeBase} /></div>
           <div className="mt-5 space-y-4">
             {items.map((item) => <div key={item.uid} className="flex gap-3 border-b border-charcoal-900/5 pb-4 last:border-0"><img src={item.image} alt={item.name} className="h-16 w-16 rounded-xl object-cover" /><div className="min-w-0 flex-1"><div className="flex justify-between gap-3"><p className="truncate font-bold text-charcoal-900">{item.name} <span className="font-normal text-charcoal-500">× {item.quantity}</span></p><strong className="text-charcoal-900">{money(item.price * item.quantity)}</strong></div><p className="mt-1 text-xs text-charcoal-500">{item.spec} · {t('order.ordered_by', { name: item.orderedBy })}</p><div className="mt-2 flex items-center justify-between"><span className="rounded-full bg-amber-100 px-2 py-1 text-xs font-bold text-charcoal-700">{t(`order.stage.${item.stage}.label`)}</span>{item.cancelState ? <span className="text-xs font-bold text-amber-500">{t('order.cancel_pending')}</span> : item.stage !== 'served' && <button onClick={() => onCancel(item.uid)} className="flex items-center gap-1 text-xs font-semibold text-charcoal-500 hover:text-chili-500"><RotateCcw size={13} />{t('order.cancel')}</button>}</div></div></div>)}
           </div>

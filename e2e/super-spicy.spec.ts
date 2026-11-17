@@ -1,17 +1,24 @@
 import { test, expect, type Page } from '@playwright/test'
+import { confirmHotpotBase } from './helpers/hotpot-base'
 
-/** Navigate from app start to the menu view and open a broth product spec dialog. */
-async function goToBrothSpec(page: Page, productIndex = 0) {
+/** 从首页进入点餐页并完成底料必选环节。 */
+async function goToMenu(page: Page) {
   await page.goto('/')
   // Bind table
   await page.getByRole('button', { name: /A08/ }).first().click()
   // Welcome page - enter menu
   await page.getByRole('button', { name: /进入点餐|Enter/ }).click()
-  // Switch to broth category
+  // 底料必选环节：进入点餐页自动弹出，先确认一种底料才能继续
+  await confirmHotpotBase(page)
+}
+
+/** 进入点餐页并打开锅底分类下第 N 个底料的规格弹窗。 */
+async function goToBrothSpec(page: Page, productIndex = 0) {
+  await goToMenu(page)
   await page.getByRole('button', { name: '锅底' }).click()
-  // Open the broth product spec dialog
   const productCards = page.locator('article')
   await productCards.nth(productIndex).locator('button').last().click()
+  await expect(page.getByRole('button', { name: '确认并去选底料' })).toBeVisible()
 }
 
 test.describe('超级辣锅底选项 - E2E 验收测试', () => {
@@ -61,10 +68,13 @@ test.describe('超级辣锅底选项 - E2E 验收测试', () => {
     await expect(page.getByText('风险提示')).not.toBeVisible()
     const superSpicyBtn = page.getByRole('button', { name: '超级辣' })
     await expect(superSpicyBtn).toHaveClass(/border-chili-500/)
-    await page.getByRole('button', { name: '加入本桌购物车' }).click()
-    await expect(page.getByText('本桌购物车').first()).toBeVisible()
-    await expect(page.getByText('超级辣').first()).toBeVisible()
-    await expect(page.getByText('客户已确认风险').first()).toBeVisible()
+    await page.getByRole('button', { name: '确认并去选底料' }).click()
+    const baseDialog = page.getByRole('dialog').filter({ hasText: '先选一锅底料' })
+    await expect(baseDialog).toBeVisible()
+    // 携带的规格（含超级辣与已确认风险）应随底料保存到本桌
+    await baseDialog.getByRole('button', { name: '保存底料' }).click()
+    await expect(page.getByTestId('hotpot-base-summary').first()).toContainText('超级辣')
+    await expect(page.getByTestId('hotpot-base-summary').first()).toContainText('客户已确认风险')
   })
 
   test('REQ-004.1: 点击「重新选择」后超级辣不被选中，恢复之前选择', async ({ page }) => {
@@ -122,10 +132,14 @@ test.describe('超级辣锅底选项 - E2E 验收测试', () => {
     await expect(page.getByText('风险提示')).not.toBeVisible()
     const heavyBtn = page.getByRole('button', { name: '重辣' })
     await expect(heavyBtn).toHaveClass(/border-chili-500/)
-    await page.getByRole('button', { name: '加入本桌购物车' }).click()
-    await expect(page.getByText('本桌购物车').first()).toBeVisible()
-    await expect(page.getByText('重辣').first()).toBeVisible()
-    await expect(page.getByText('客户已确认风险')).not.toBeVisible()
+    await page.getByRole('button', { name: '确认并去选底料' }).click()
+    const baseDialog = page.getByRole('dialog').filter({ hasText: '先选一锅底料' })
+    await expect(baseDialog.getByText('已选 1 种底料')).toBeVisible()
+    await baseDialog.getByRole('button', { name: '保存底料' }).click()
+    // 底料主名称与规格分别在购物车汇总中展示
+    const baseSpec = baseDialog.page().getByTestId('hotpot-base-summary').first()
+    await expect(baseSpec).toContainText('鎏金番茄鸳鸯锅')
+    await expect(baseSpec).not.toContainText('客户已确认风险')
   })
 
   test('REQ-001: p2 牛油麻辣锅也显示超级辣选项', async ({ page }) => {

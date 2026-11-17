@@ -7,6 +7,8 @@ export const initialState: AppState = {
   table: null,
   diners: ['姚乾', '林溪', '陈默'],
   cart: [],
+  hotpotBases: [],
+  orderBases: [],
   orderItems: [],
   orderStage: 'submitted',
   soldOut: ['p8'],
@@ -43,12 +45,23 @@ export function orderReducer(state: AppState, action: AppAction): AppState {
         .filter((item) => item.quantity > 0)
       return { ...state, cart }
     }
+    case 'SET_HOTPOT_BASES': {
+      // 逐字段比较，避免对可能带额外引用的对象做 JSON 序列化
+      const changed = state.hotpotBases.length !== action.bases.length
+        || state.hotpotBases.some((base, index) => base.productId !== action.bases[index]?.productId || base.spec !== action.bases[index]?.spec)
+      if (!changed) return state
+      const cart = state.cart.filter((item) => !item.uid.startsWith('base-'))
+      return { ...state, hotpotBases: action.bases, cart, lastMessage: i18next.t('message.hotpot_base_updated') }
+    }
     case 'SUBMIT_ORDER': {
-      if (!state.cart.length) return state
+      // 底料是整桌必选环节：未选择时不允许提交（统一由调用方提示，这里做数据兜底）
+      if (!state.cart.length || !state.hotpotBases.length) return state
+      // 底料单独保存在 orderBases，不再作为独立订单行，避免订单/结账重复展示与重复计价
       const additions = state.cart.map((item) => ({ ...item, stage: 'submitted' as const }))
       return {
         ...state,
         orderItems: [...state.orderItems, ...additions],
+        orderBases: state.hotpotBases,
         cart: [],
         orderStage: 'submitted',
         view: 'order',
