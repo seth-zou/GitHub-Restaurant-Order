@@ -13,7 +13,7 @@
   - **待确认**：儿童模式下是否过滤超辣底料（`p2 牛油麻辣锅`）以及是否仍强制选底料（OQ-001）。
 - Review 重点:
   - Scope：仅约束点餐/购物车/订单/结账/菜单底料卡与 i18n，不含 `server/`、支付渠道、真实库存服务。
-  - REQ：REQ-001～REQ-009 的 EARS 与 Gherkin 是否可作为开发与 E2E 的最终契约。
+  - REQ：REQ-001～REQ-010 的 EARS 与 Gherkin 是否可作为开发与 E2E 的最终契约。
   - Data contract：`hotpotBases` / `orderBases` 的语义差异（本桌当前 vs 已提交）与「底料不入订单行」的计价口径。
   - 兼容：既有 `super-spicy.spec.ts`、`theme-mode.spec.ts`、`view-routing.spec.ts` 因「进入点餐需先完成底料」而必须同步适配。
   - 版本差异：儿童模式合并后的叠加口径（OQ-001）。
