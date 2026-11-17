@@ -227,8 +227,9 @@ test.describe('火锅底料必选环节 - E2E 验收测试', () => {
     await consoleDialog.getByRole('button', { name: '鎏金番茄鸳鸯锅' }).click()
     await consoleDialog.getByRole('button', { name: '牛油麻辣锅' }).click()
     await consoleDialog.getByRole('button', { name: '完成设置' }).click()
-    // 已选底料被售罄联动清空，但全部售罄为降级场景——提交不应被底料阻塞
-    await expect(page.getByTestId('hotpot-base-summary').first()).toContainText('请先选择火锅底料')
+    // 已选底料被售罄联动清空，全部售罄为降级场景（baseRequired=false），
+    // 汇总展示「未选择底料」而非阻断提示「请先选择火锅底料」
+    await expect(page.getByTestId('hotpot-base-summary').first()).toContainText('未选择底料')
     // 再次进入点餐页验证弹窗降级提示（刷新模拟重新进入）
     await page.goto('/#/menu')
     const dialog = page.getByRole('dialog').filter({ hasText: '今日底料已暂售' })
