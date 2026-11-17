@@ -28,12 +28,13 @@ export function MenuView({ child, diners, soldOut, onAdd }: MenuViewProps) {
   const [diner, setDiner] = useState(diners[0])
 
   const handleSpicyChange = (option: string) => {
-    // 儿童模式：超级辣不可选，弱化为普通选项（不弹风险提示）
-    if (option === 'menu.option.super_spicy' && !child) {
-      setShowRiskWarning(true)
-    } else {
-      setSpicy(option)
+    // 儿童模式：超级辣不可选（按钮已 disabled），即使触发也不设置
+    if (option === 'menu.option.super_spicy') {
+      if (!child) setShowRiskWarning(true)
+      // 儿童模式：不弹风险提示，不进入选中态
+      return
     }
+    setSpicy(option)
   }
 
   const confirmSuperSpicy = () => {
@@ -138,6 +139,7 @@ export function MenuView({ child, diners, soldOut, onAdd }: MenuViewProps) {
             <div className="mt-4 flex gap-4 rounded-2xl bg-white p-3"><img src={selected.image} alt={t(selected.name)} className="h-24 w-24 rounded-xl object-cover" /><div><p className="text-sm leading-6 text-charcoal-500">{t(selected.description)}</p><p className="mt-2 text-xl font-extrabold text-chili-500">{money(selected.price)} <small className="text-xs font-medium text-charcoal-500">{t('menu.per_portion')}</small></p></div></div>
             {selected.options?.portion && <OptionRow label={t('menu.select_portion')} options={selected.options.portion} value={portion} onChange={setPortion} t={t} />}
             {selected.options?.flavor && <OptionRow label={t('menu.select_flavor')} options={selected.options.flavor} value={flavor} onChange={setFlavor} t={t} />}
+            {selected.options?.spicy && <OptionRow label={t('menu.select_spicy')} icon={<Flame size={15} className="text-chili-500" />} options={selected.options.spicy} value={spicy} onChange={handleSpicyChange} t={t} disabledOptions={['menu.option.super_spicy']} />}
             <Button onClick={() => addSelected(diners[0])} className="mt-6 w-full child-add-btn"><Plus size={17} />{t('menu.child_add_to_cart')}</Button>
           </>}
           {selected && !child && <>
@@ -169,6 +171,9 @@ export function MenuView({ child, diners, soldOut, onAdd }: MenuViewProps) {
 
 type TFunc = (key: string, options?: Record<string, unknown>) => string
 
-function OptionRow({ label, icon, options, value, onChange, t }: { label: string; icon?: React.ReactNode; options: string[]; value: string; onChange: (value: string) => void; t: TFunc }) {
-  return <div className="mt-5"><p className="mb-3 flex items-center gap-2 text-sm font-bold text-charcoal-900">{icon}{label}</p><div className="flex flex-wrap gap-2">{options.map((option) => <button key={option} onClick={() => onChange(option)} className={`touch-option rounded-xl border px-4 py-2 text-sm font-semibold transition ${value === option ? 'border-chili-500 bg-chili-50 text-chili-600' : 'border-charcoal-900/10 bg-white text-charcoal-500'}`}>{t(option)}</button>)}</div></div>
+function OptionRow({ label, icon, options, value, onChange, t, disabledOptions }: { label: string; icon?: React.ReactNode; options: string[]; value: string; onChange: (value: string) => void; t: TFunc; disabledOptions?: string[] }) {
+  return <div className="mt-5"><p className="mb-3 flex items-center gap-2 text-sm font-bold text-charcoal-900">{icon}{label}</p><div className="flex flex-wrap gap-2">{options.map((option) => {
+    const disabled = disabledOptions?.includes(option)
+    return <button key={option} disabled={disabled} onClick={() => !disabled && onChange(option)} className={`touch-option rounded-xl border px-4 py-2 text-sm font-semibold transition ${disabled ? 'cursor-not-allowed border-charcoal-900/5 bg-rice-100 text-charcoal-500/40' : value === option ? 'border-chili-500 bg-chili-50 text-chili-600' : 'border-charcoal-900/10 bg-white text-charcoal-500'}`}>{t(option)}</button>
+  })}</div></div>
 }
