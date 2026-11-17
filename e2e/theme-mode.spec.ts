@@ -44,6 +44,12 @@ async function expectTheme(page: Page, resolved: Resolved, preference?: Preferen
   }
 }
 
+/** 以整页加载方式打开深链接：hash 间跳转属于同文档导航，不会重建内存态桌台。 */
+async function openRouteFresh(page: Page, route: string) {
+  await page.goto('about:blank')
+  await page.goto(route)
+}
+
 /** 断言当前 hash 路由，用于验证主题切换不改变路由。 */
 async function expectRouteHash(page: Page, hash: string) {
   expect(await page.evaluate(() => window.location.hash)).toBe(hash)
@@ -455,7 +461,7 @@ test.describe('主题体验增强 - E2E 验收', () => {
 
     test('TC-108: 夜间模式覆盖五个视图的根背景，关键文字满足 WCAG AA', async ({ page }) => {
       for (const route of ROUTES) {
-        await page.goto(route)
+        await openRouteFresh(page, route)
         await expectTheme(page, 'dark', 'system')
         await expect(page.locator('html')).toHaveCSS('background-color', DARK_ROOT_BACKGROUND)
         await expect(page.locator('body')).toHaveCSS('background-color', DARK_ROOT_BACKGROUND)
@@ -465,7 +471,7 @@ test.describe('主题体验增强 - E2E 验收', () => {
         await expectReadableAA(page, heading)
       }
 
-      await page.goto('/#/menu')
+      await openRouteFresh(page, '/#/menu')
       await expect(page.getByRole('heading', { name: '鎏金番茄鸳鸯锅' })).toHaveCSS('color', 'rgb(247, 241, 230)')
       await expectReadableAA(page, page.getByRole('heading', { name: '鎏金番茄鸳鸯锅' }))
 
@@ -522,7 +528,8 @@ test.describe('主题体验增强 - E2E 验收', () => {
       const cartDialog = page.getByRole('dialog').last()
       await expect(cartDialog).toBeVisible()
       await expect(cartDialog).toHaveCSS('background-color', DARK_DIALOG_BACKGROUND)
-      await expectReadableAA(page, page.getByRole('heading', { name: '本桌购物车' }))
+      // 页面内购物车面板与弹层各有一个同名标题，这里只校验已打开的弹层标题。
+      await expectReadableAA(page, cartDialog.getByRole('heading', { name: '本桌购物车' }).first())
 
       const bottomNav = page.locator('nav.safe-bottom')
       await expect(bottomNav).toBeVisible()
