@@ -22,9 +22,11 @@ interface OrderViewProps {
   onCancel: (uid: string) => void
   onChangeBase: () => void
   onCheckout: () => void
+  /** 底料缺失阻断提示（取消底料后点击去结账时为 true） */
+  baseWarning?: boolean
 }
 
-export function OrderView({ items, bases, stage, onAddMore, onCancel, onChangeBase, onCheckout }: OrderViewProps) {
+export function OrderView({ items, bases, stage, onAddMore, onCancel, onChangeBase, onCheckout, baseWarning }: OrderViewProps) {
   const { t } = useTranslation()
   const total = items.filter((item) => item.cancelState !== 'approved').reduce((sum, item) => sum + item.price * item.quantity, 0)
 
@@ -53,7 +55,7 @@ export function OrderView({ items, bases, stage, onAddMore, onCancel, onChangeBa
 
         <section className="rounded-3xl bg-white p-5 shadow-card lg:col-span-3">
           <div className="flex items-center justify-between"><div><h2 className="text-lg font-extrabold text-charcoal-900">{t('order.items_title')}</h2><p className="mt-1 text-xs text-charcoal-500">{t('order.order_no')}</p></div><span className="rounded-full bg-chili-50 px-3 py-1 text-xs font-bold text-chili-600">{t('order.item_count', { count: items.length })}</span></div>
-          <div className="mt-4"><HotpotBaseSummary bases={bases} onChange={onChangeBase} /></div>
+          <div className="mt-4"><HotpotBaseSummary bases={bases} onChange={onChangeBase} warning={baseWarning} /></div>
           <div className="mt-5 space-y-4">
             {items.map((item) => <div key={item.uid} className="flex gap-3 border-b border-charcoal-900/5 pb-4 last:border-0"><img src={item.image} alt={item.name} className="h-16 w-16 rounded-xl object-cover" /><div className="min-w-0 flex-1"><div className="flex justify-between gap-3"><p className="truncate font-bold text-charcoal-900">{item.name} <span className="font-normal text-charcoal-500">× {item.quantity}</span></p><strong className="text-charcoal-900">{money(item.price * item.quantity)}</strong></div><p className="mt-1 text-xs text-charcoal-500">{item.spec} · {t('order.ordered_by', { name: item.orderedBy })}</p><div className="mt-2 flex items-center justify-between"><span className="rounded-full bg-amber-100 px-2 py-1 text-xs font-bold text-charcoal-700">{t(`order.stage.${item.stage}.label`)}</span>{item.cancelState ? <span className="text-xs font-bold text-amber-500">{t('order.cancel_pending')}</span> : item.stage !== 'served' && <button onClick={() => onCancel(item.uid)} className="flex items-center gap-1 text-xs font-semibold text-charcoal-500 hover:text-chili-500"><RotateCcw size={13} />{t('order.cancel')}</button>}</div></div></div>)}
           </div>

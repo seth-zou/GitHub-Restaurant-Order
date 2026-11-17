@@ -87,19 +87,29 @@ export default function App() {
   const navigate = useCallback((view: ViewName) => dispatch({ type: 'SET_VIEW', view }), [])
   useViewRoute(state.view, { onNavigate: navigate, canView })
 
-  // 仅“首次进入点餐页”自动弹出底料必选；用户主动取消底料后停在本页并给阻断提示，不反复强制弹窗
+  // 仅"首次进入点餐页"自动弹出底料必选；用户主动取消底料后停在本页并给阻断提示，不反复强制弹窗
+  // 全部底料售罄时也自动弹出（降级模式展示"今日底料已暂售"，不阻塞点餐）
   const autoPromptedRef = useRef(false)
   useEffect(() => {
     if (state.view !== 'menu') {
       autoPromptedRef.current = false
       return
     }
-    if (baseRequired && !state.hotpotBases.length && !autoPromptedRef.current) {
-      autoPromptedRef.current = true
-      setBaseRequiredLock(true)
-      setBaseOpen(true)
+    const hasSelectable = hasSelectableBases(state.soldOut)
+    // 有可售底料且未选择 → 必选弹窗
+    // 全部售罄 → 降级提示弹窗（展示"今日底料已暂售"）
+    if (!autoPromptedRef.current) {
+      if (hasSelectable && !state.hotpotBases.length) {
+        autoPromptedRef.current = true
+        setBaseRequiredLock(true)
+        setBaseOpen(true)
+      } else if (!hasSelectable) {
+        autoPromptedRef.current = true
+        setBaseRequiredLock(false)
+        setBaseOpen(true)
+      }
     }
-  }, [state.view, baseRequired, state.hotpotBases.length])
+  }, [state.view, state.hotpotBases.length, state.soldOut])
 
   // 已选底料变为售罄：提示重新选择，避免带失效底料继续
   useEffect(() => {
@@ -123,8 +133,13 @@ export default function App() {
   }, [i18n.language, t])
 
   const changeView = (view: ViewName) => dispatch({ type: 'SET_VIEW', view })
-  const openBasePicker = (preset?: HotpotBaseSelection) => {
-    setPresetBase(preset ?? null)
+  // 过滤掉 MouseEvent 等非 HotpotBaseSelection 参数：HotpotBaseSummary 的 onChange 通过 button onClick 调用，
+  // 会传入 MouseEvent（truthy），导致 preset ?? null 无法正确识别为"无预置"
+  const openBasePicker = (preset?: HotpotBaseSelection | unknown) => {
+    const validPreset = preset && typeof preset === 'object' && 'productId' in preset && 'spec' in preset
+      ? preset as HotpotBaseSelection
+      : null
+    setPresetBase(validPreset)
     setBaseRequiredLock(false)
     setBaseOpen(true)
     setBaseWarning(false)
@@ -214,8 +229,9 @@ export default function App() {
           stage={state.orderStage}
           onAddMore={() => changeView('menu')}
           onCancel={(uid) => dispatch({ type: 'REQUEST_CANCEL', uid })}
-          onChangeBase={openBasePicker}
+          onChangeBase={() => openBasePicker()}
           onCheckout={goCheckout}
+          baseWarning={baseWarning}
         />
       )}
 
@@ -223,7 +239,7 @@ export default function App() {
         <CheckoutView
           items={state.orderItems}
           basesTotal={basesTotal(state.orderBases)}
-          onRemoveBases={openBasePicker}
+          onRemoveBases={() => openBasePicker()}
           basesLabel={describeBases(state.orderBases, t)}
           basesMissing={!state.orderBases.length}
           paid={state.paid}
@@ -249,7 +265,7 @@ export default function App() {
       <HotpotBaseDialog open={baseOpen} preset={presetBase ? { productId: presetBase.productId, spec: presetBase.spec } : null} value={state.hotpotBases.map((base) => ({ productId: base.productId, spec: base.spec }))} soldOut={state.soldOut} required={baseRequiredLock} onOpenChange={(next) => {
         setBaseOpen(next)
         if (!next) {
-          // 关闭即丢弃“从菜单规格携带”的预置值，避免下次打开时被旧的预置覆盖
+          // 关闭即丢弃"从菜单规格携带"的预置值，避免下次打开时被旧的预置覆盖
           setBaseRequiredLock(false)
           setPresetBase(null)
         }

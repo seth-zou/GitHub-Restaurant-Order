@@ -1,5 +1,6 @@
 import i18next from 'i18next'
 import { uid } from '@/lib/utils'
+import { hasSelectableBases } from '@/lib/hotpot'
 import type { AppAction, AppState } from '@/types'
 
 export const initialState: AppState = {
@@ -55,7 +56,10 @@ export function orderReducer(state: AppState, action: AppAction): AppState {
     }
     case 'SUBMIT_ORDER': {
       // 底料是整桌必选环节：未选择时不允许提交（统一由调用方提示，这里做数据兜底）
-      if (!state.cart.length || !state.hotpotBases.length) return state
+      // 全部底料售罄时为降级场景（baseRequired=false），不阻塞提交
+      const baseRequired = hasSelectableBases(state.soldOut)
+      if (!state.cart.length) return state
+      if (baseRequired && !state.hotpotBases.length) return state
       // 底料单独保存在 orderBases，不再作为独立订单行，避免订单/结账重复展示与重复计价
       const additions = state.cart.map((item) => ({ ...item, stage: 'submitted' as const }))
       return {

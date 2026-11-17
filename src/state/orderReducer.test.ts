@@ -73,8 +73,8 @@ describe('SET_HOTPOT_BASES', () => {
 })
 
 describe('SUBMIT_ORDER', () => {
-  it('blocks submission when hotpotBases is empty (TC-016)', () => {
-    const state = stateWithCart({ hotpotBases: [] })
+  it('blocks submission when hotpotBases is empty and bases are required (TC-016)', () => {
+    const state = stateWithCart({ hotpotBases: [], soldOut: ['p8'] })
     const action: AppAction = { type: 'SUBMIT_ORDER' }
     const result = orderReducer(state, action)
     expect(result.view).toBe('menu')
@@ -150,6 +150,18 @@ describe('SUBMIT_ORDER', () => {
     const action: AppAction = { type: 'SUBMIT_ORDER' }
     const result = orderReducer(state, action)
     expect(result.orderItems.length).toBe(2)
+  })
+
+  it('allows submission when all bases are sold out (degradation, TC-012)', () => {
+    const state = stateWithCart({
+      hotpotBases: [],
+      soldOut: ['p1', 'p2', 'p8'], // all bases sold out → baseRequired=false
+    })
+    const action: AppAction = { type: 'SUBMIT_ORDER' }
+    const result = orderReducer(state, action)
+    expect(result.view).toBe('order')
+    expect(result.orderItems.length).toBe(1)
+    expect(result.orderBases).toEqual([]) // no bases, but allowed
   })
 })
 
