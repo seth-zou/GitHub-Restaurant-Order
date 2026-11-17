@@ -5,6 +5,7 @@
 ## 1. 环境与依赖前置
 
 - 缺 `node_modules` 时先装依赖（`npm ci` / `npm install`），再编译或类型检查。
+- 单元测试使用 Node 内置 `node:test` + TypeScript 类型剥离，需 Node ≥ 22.18；不依赖浏览器与 Playwright。
 - 直接使用 `playwright.config.ts` 的默认配置，不在命令行传 `--reporter`、`--viewport` 等覆盖参数，一次执行同时拿到终端输出和 HTML 报告。既定默认值：
   - reporter：`html`（输出到默认 `playwright-report/`）+ `list`。
   - 视口 Desktop Chrome 1280x720；`timeout` 30s、`expect.timeout` 10s。
@@ -45,5 +46,5 @@
 - 是否覆盖需求正反两类路径（如超级辣弹提示、其它辣度不弹）。
 - 改样式/文案时是否破坏既有基于 class/文案的 E2E 断言；zh/en 文案是否同步；新增 localStorage key 是否遵循 try/catch 降级。
 - 是否触及 [../AGENTS.md](../AGENTS.md) 的“不要做”；目录结构、色板或约定变化时同步更新文档。
-- 按报错来源选命令：类型/构建用 `npm run build` 或 `npx tsc -b --noEmit`；静态规范用 `npm run lint`；交互回归用 `npx playwright test`；不用构建命令排查 E2E 行为问题。
+- 按报错来源选命令：类型/构建用 `npm run build` 或 `npx tsc -b --noEmit`；静态规范用 `npm run lint`；纯逻辑回归用 `npm run test:unit`；交互回归用 `npx playwright test`；不用构建命令排查 E2E 行为问题。
 - 无依赖的只读命令（`git status`、`git log`、`rg -n`、读配置）合并到同一轮并行调用，减少串行往返。

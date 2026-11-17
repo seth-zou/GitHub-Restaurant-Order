@@ -28,12 +28,14 @@ src/
 ├── hooks/useThemeMode.ts  # 三态主题：localStorage + html.dark + 系统偏好联动
 ├── hooks/useViewRoute.ts  # 视图 ↔ URL hash 双向同步（含深链接/非法地址纠正）
 ├── lib/utils.ts           # cn（类名合并）、money（¥ 格式化）
+├── lib/theme.ts           # 主题核心：偏好校验/解析、存储降级、系统检测、DOM 同步、状态机（不依赖 React，可单测）
 ├── components/            # 页面组件（HomeView/WelcomeView/MenuView/OrderView/CheckoutView 对应各视图）；通用件在 components/ui/（button、dialog）
 └── assets/                # hotpot/broth/beef/vegetables 图片
 e2e/super-spicy.spec.ts    # 超级辣风险提示 E2E 验收
 e2e/view-routing.spec.ts   # 视图 URL hash 路由 E2E 验收
 e2e/theme-mode.spec.ts     # 三态主题、跟随系统联动、持久化与降级 E2E 验收
 scripts/check-theme-coverage.mjs # 颜色类夜间映射守卫（npm run theme:check）
+test/theme.test.ts         # 主题核心逻辑单元测试（node:test，npm run test:unit）
 index.html                 # 入口，含初始化语言的内联脚本
 tailwind.config.js         # 自定义色板；vite.config.ts 配 base './' 与 @ 别名
 playwright.config.ts       # E2E 配置
@@ -61,6 +63,7 @@ playwright.config.ts       # E2E 配置
 - 页面组件放 `src/components/`，通用件放 `src/components/ui/`；弹窗用封装的 `Dialog`，按钮用 CVA `Button`（default/secondary/outline/ghost），图标用 lucide-react 并靠 `currentColor` 继承。
 - 样式只用 Tailwind 类名，不用 CSS Modules / styled-components。
 - 新增 i18n 文案在 `src/i18n.ts` 的 zh/en 两处同步添加，按功能分组（`common.`、`menu.`、`cart.`、`order.` 等）。
+- 不依赖浏览器/React 的纯逻辑优先放到 `src/lib/` 并补 `test/*.test.ts` 单元测试；交互验收仍放 `e2e/`。
 - 新增 `localStorage` 持久化一律 `try/catch` 包裹，不可用时降级内存态；现有 key：`i18nextLng`、`elderly-mode`（`true`/`false`）、`theme-mode`（`system`/`light`/`dark`）。
 - 需要在 React 挂载前设置 html 属性/class 时，扩展 `index.html` 的内联脚本。
 - npm 源默认走 `https://registry.npmmirror.com`（见根目录与 `server/.npmrc`）。
@@ -73,6 +76,7 @@ playwright.config.ts       # E2E 配置
 | `npm run build` | `tsc -b && vite build`，产物到 `dist/` |
 | `npm run lint` | ESLint，零警告通过 |
 | `npm run theme:check` | 校验颜色类均有夜间映射或安全归类 |
+| `npm run test:unit` | 主题核心逻辑单元测试（`node:test`，需 Node ≥ 22.18 的内置 TypeScript 类型剥离） |
 | `npx tsc -b --noEmit` | 仅类型检查 |
 | `npx playwright test` | E2E，webServer 自动拉起 `npm run dev` |
 
