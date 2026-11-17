@@ -14,6 +14,7 @@ import { TopBar } from '@/components/TopBar'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { useElderlyMode } from '@/hooks/useElderlyMode'
+import { useChildMode } from '@/hooks/useChildMode'
 import { initialViewFromHash, useViewRoute } from '@/hooks/useViewRoute'
 import { orderReducer, initialState } from '@/state/orderReducer'
 import { products } from '@/data/menu'
@@ -50,6 +51,7 @@ export default function App() {
   const { t, i18n } = useTranslation()
   const [state, dispatch] = useReducer(orderReducer, undefined, createInitialState)
   const { enabled: elderly, toggle: toggleElderly } = useElderlyMode()
+  const { enabled: child, toggle: toggleChild } = useChildMode()
   const [serviceOpen, setServiceOpen] = useState(false)
   const [consoleOpen, setConsoleOpen] = useState(false)
   const [cartOpen, setCartOpen] = useState(false)
@@ -81,17 +83,21 @@ export default function App() {
   const toggleLanguage = () => {
     i18n.changeLanguage(i18n.language === 'zh' ? 'en' : 'zh')
   }
+  const handleToggleChild = () => {
+    toggleChild()
+    dispatch({ type: 'SET_MESSAGE', message: child ? '已关闭儿童模式' : '已开启儿童模式' })
+  }
   const handleToggleElderly = () => {
     toggleElderly()
     dispatch({ type: 'SET_MESSAGE', message: elderly ? '已切换为常规模式' : '已切换为老人模式' })
   }
 
   if (state.view === 'home' || !state.table) {
-    return <HomeView onBind={(table) => dispatch({ type: 'BIND_TABLE', table })} />
+    return <HomeView onBind={(table) => dispatch({ type: 'BIND_TABLE', table })} child={child} onToggleChild={handleToggleChild} language={i18n.language} onToggleLanguage={toggleLanguage} elderly={elderly} onToggleElderly={handleToggleElderly} />
   }
 
   if (state.view === 'welcome') {
-    return <WelcomeView table={state.table!} onEnter={() => dispatch({ type: 'SET_VIEW', view: 'menu' })} />
+    return <WelcomeView table={state.table!} onEnter={() => dispatch({ type: 'SET_VIEW', view: 'menu' })} child={child} onToggleChild={handleToggleChild} language={i18n.language} onToggleLanguage={toggleLanguage} elderly={elderly} onToggleElderly={handleToggleElderly} />
   }
 
   return (
@@ -102,6 +108,8 @@ export default function App() {
         serviceCount={waitingServices}
         language={i18n.language}
         elderly={elderly}
+        child={child}
+        onToggleChild={handleToggleChild}
         onToggleLanguage={toggleLanguage}
         onToggleElderly={handleToggleElderly}
         onView={changeView}
@@ -112,7 +120,7 @@ export default function App() {
       {state.view === 'menu' && (
         <main className="mx-auto grid max-w-7xl gap-6 px-4 py-5 pb-28 lg:grid-cols-3 lg:px-6 lg:py-7 lg:pb-8">
           <div className="lg:col-span-2">
-            <MenuView diners={state.diners} soldOut={state.soldOut} onAdd={(item) => dispatch({ type: 'ADD_CART', item })} />
+            <MenuView child={child} diners={state.diners} soldOut={state.soldOut} onAdd={(item) => dispatch({ type: 'ADD_CART', item })} />
           </div>
           <aside className="hidden lg:block">
             <div className="sticky top-28">

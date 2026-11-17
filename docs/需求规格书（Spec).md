@@ -1,393 +1,481 @@
 # Review Summary
 
-- 本次需求: 为沸点火锅点单 SPA 提供可发现的浅色/深色主题入口，保证夜间模式可读性、对比度、交互一致性，并持久化用户选择。
-- 需求类型: UX / 前端主题状态 / 可访问性 / 本机状态持久化。
-- 变更面: Functional Requirements、UX Design、Backend/Data、NFR / DFX、Open Questions、Traceability、Test Cases；不涉及: API Design、Metrics；待确认: 无阻塞项。
-- 变更面判断依据: 澄清文档与 PRD 明确全局主题入口、默认策略和本机持久化；仓库 `AGENTS.md`、`src/hooks/useThemeMode.ts`、`src/components/ThemeToggle.tsx`、`src/index.css`、`index.html` 与 `e2e/theme-mode.spec.ts` 确认这是浏览器端 SPA 的全局展示与状态能力，无后端接口。
-- 差异判断: 产品形态 / 站点 / 环境 / 版本差异——不涉及新增差异；依据为单仓 React SPA、hash 路由、GitHub Pages 子路径部署，无原生端、多站点或后端业务链路证据。
+- 本次需求: 在沸点火锅点单 SPA 中新增可与老人模式、夜间模式独立叠加的「儿童模式」，提供更大触控区域、简化菜品展示、儿童友好视觉，并默认规避超辣菜品。
+- 需求类型: UX / 前端显示模式 / 可访问性 / 本机偏好持久化。
+- 变更面: Functional Requirements、UX Design、Backend/Data（本机存储契约）、NFR / DFX、Test Cases、Open Questions、Traceability；不涉及: API Design、Metrics；待确认: 无阻塞项。
+- 变更面判断依据: 用户需求与「需求澄清 Spec 文档」「PRD 文档」「参考代码及变更说明」；仓库 `AGENTS.md`、`src/hooks/useElderlyMode.ts`、`src/hooks/useThemeMode.ts`、`src/hooks/useChildMode.ts`、`src/components/ChildModeToggle.tsx`、`src/components/MenuView.tsx`、`src/App.tsx`、`src/components/TopBar.tsx`、`src/components/HomeView.tsx`、`src/components/WelcomeView.tsx`、`src/data/menu.ts`、`src/i18n.ts`、`src/index.css`、`index.html`、`e2e/child-mode.spec.ts`、`e2e/super-spicy.spec.ts`。仓库为纯前端 SPA（`server/` 仅健康检查），无后端业务链路。
+- 差异判断: 产品形态 / 站点 / 环境 / 版本差异——不涉及；依据为单仓 React SPA、hash 路由、GitHub Pages 子路径部署，本需求仅新增一种浏览器端显示模式，无原生端、多站点或后端版本分支证据。
 - 本次变更关键信息:
-  - Spec 采纳用户选择 > 系统 `prefers-color-scheme` > 浅色的优先级；无保存值时只在初始化读取一次系统偏好，不监听运行时变化。
-  - Spec 采纳 `html.dark` + 集中暗色语义映射作为当前主题维护方式，新增组件必须复用已映射语义类或同步扩展集中映射，不引入第二套暗色实现。
-  - 本机契约固定为 `localStorage.theme-mode=light|dark`、`html.dark`、`data-theme-mode` 与 `meta[name="theme-color"]`；非法值按未保存处理。
-  - 明确 `localStorage` 不可用时降级为会话内存态，不阻塞点餐；不迁移既有数据、不做跨设备同步。
-  - 新增可执行功能与非功能测试用例，覆盖入口、默认值、优先级、持久化、降级、视觉、老人模式、双语和业务回归。
-- Review 重点: 默认与持久化优先级、集中暗色映射维护约束、对比度与焦点、存储失败降级、老人模式叠加、React 挂载前初始化、业务流程不受影响。
+  - 儿童模式为第三种独立显示模式：`html.child` + `data-child-mode`，与 `html.elderly`、`html.dark` 并行，互不读写；`localStorage.child-mode` 独立持久化，默认关闭。
+  - **本轮决策（用户已确认）**：儿童模式下展开超辣菜品后，规格弹窗**显示辣度区**，微辣/中辣/重辣可选，「超级辣」**置灰禁用**且不弹风险提示、不进入选中态。当前工作分支 `40887cd` 的实现为"整体不渲染辣度区"，与 PRD/澄清文档不一致，需在「开发与自测」节点补齐（见 REQ-003、Open Questions OQ-001）。
+  - 超辣判定统一为「锅底辣度选项包含 `menu.option.super_spicy`」；儿童模式默认隐藏，可一键展开，售罄不计入隐藏数量。
+  - 简化范围：卡片隐藏描述、徽章与「本桌已点」，价格后缀为「份」；规格弹窗去「谁点了」，主按钮「就要这一份」；主要控件命中高 ≥48px、加菜按钮 52px；根字号 112.5%。
+  - 叠加优先级：夜间开启时颜色以 `.dark` 映射为准，儿童模式只保留尺寸与简化；老人 125% 与儿童 112.5% 字号叠乘。存储读写异常降级为会话内存态。
+  - 常规模式（儿童关闭）下既有超级辣风险提示、购物车、订单、结账流程完全不变。
+- Review 重点: 超级辣禁用契约（REQ-003）与当前实现的差异、三模式叠加的样式优先级、首帧无闪烁、存储失败降级、zh/en 文案同步、既有 `super-spicy.spec.ts` 无回归。
 
 ## Scope Note
 
-- Implemented sections: Functional Requirements, UX Design, Backend/Data, NFR / DFX, Test Cases, Traceability, Open Questions。
-- Not involved: API Design, Metrics。
-- Needs confirmation: 无。
-- Reason: 上游澄清文档已关闭业务契约，仓库与参考实现确认变更集中于前端主题状态、全局视觉映射和浏览器本机偏好存储。
+- Implemented sections: Functional Requirements、UX Design、Backend/Data、NFR / DFX、Test Cases、Open Questions、Traceability。
+- Not involved: API Design、Metrics。
+- Needs confirmation: 无阻塞项；家长锁与品牌图标集作为非阻塞 Open Questions 记录。
+- Reason: 澄清文档与 PRD 已给出业务契约，仓库确认变更集中于前端状态 hook、三处入口、菜单展示、集中样式映射与首帧初始化，无后端或对外契约。
 
 ---
 
-# Spec: 支持夜间模式
+# Spec: 需求规格书（Spec）— 支持儿童模式
 
 ## 1. Context
 
-本 Spec 基于「需求澄清文档」v1 与「PRD 文档」v2，目标仓库为 `seth-zou/GitHub-Restaurant-Order`，基线 `main` @ `27ffc339`，工作分支 `feat/c4d40c0e-c18o`。
+本 Spec 基于「需求澄清 Spec 文档」v1、「PRD 文档」v2 与「参考代码及变更说明」，目标仓库为 `seth-zou/GitHub-Restaurant-Order`（基线 `main` @ `58ee88a`，工作分支 `feat/6b83b6a0-gp2m`，当前 HEAD `40887cd`）。背景、目标、范围与业务规则以澄清文档为准，本文只记录 Spec 阶段增量、契约收敛与验收。
+
+关联既有能力：
+
+- 老人模式：`useElderlyMode` / `localStorage.elderly-mode` / `html.elderly`（`src/hooks/useElderlyMode.ts`）。
+- 夜间模式：`useThemeMode` / `localStorage.theme-mode` / `html.dark`（`src/hooks/useThemeMode.ts`），暗色语义集中在 `src/index.css`，`tailwind.config.js` 为 `darkMode: 'class'`。
+- 超级辣风险提示：`MenuView.handleSpicyChange` + `menu.super_spicy_warning_*` 文案，既有验收 `e2e/super-spicy.spec.ts`。
 
 Spec 阶段增量：
 
-- 关闭 TD-1：采用 `tailwind.config.js` 的 `darkMode: 'class'` 与 `src/index.css` 的集中暗色语义映射；暂不重构为逐组件 `dark:` 变体，也不新增组件内联夜间色值。
-- 关闭 TD-2：无用户选择时只在应用初始化读取一次 `prefers-color-scheme`；系统偏好的运行时变化不自动联动，本次不做。
-- 参考 commit `8577edb` 已验证入口、状态、持久化、集中映射和 E2E 的最小可行实现；本 Spec 将其收敛为下游实现、测试与评审契约。
-
-背景、目标、范围与业务规则以「需求澄清文档」为准；本文只记录 Spec 增量、产品契约与验收。
+- 关闭澄清文档 TD-1（多人点单 `orderedBy` 归属）：儿童模式移除「谁点了」后，`orderedBy` 固定为当前桌台首位就餐者 `diners[0]`，不新增只读点单人展示。
+- 收敛超级辣契约：儿童模式**默认隐藏**超辣菜品，展开后辣度区**可见但超级辣禁用**（不弹风险提示、不可被选中、加入购物车时不会携带超级辣规格），与常规模式共用同一判定函数 `isSpicyForChildren`。
+- 收敛叠加优先级：`.dark.child` 只重声明颜色、不声明尺寸；`.child` 尺寸与简化规则不受夜间模式影响。
+- 收敛持久化：`child-mode` 仅接受 `'true'` / `'false'`；写入失败后以模块级会话 fallback 优先于不可靠的旧存储值（与 `useThemeMode` 的修复一致）。
 
 ## 2. Goals and Non-Goals
 
 沿用需求澄清文档的目标与非目标，并做以下 Spec 级收窄：
 
-- Goals：把暗色 token 维护方式、系统偏好读取时机、本机契约和测试口径固化为下游唯一契约。
-- Non-Goals：不做系统偏好运行时持续监听；不做语义 token 大规模重构；不做跨设备同步、后端持久化、多主题皮肤或埋点扩展。
+- Goals：把「入口、持久化、简化展示、超辣禁用、视觉基调、三模式叠加、存储降级」固化为唯一可测契约。
+- Non-Goals：不做后端持久化、账号级偏好、跨设备同步；不做独立路由、独立菜单数据源、新依赖；不删除常规模式的超级辣风险确认弹窗；不做家长锁、不替换全局品牌图标集；不修改 `server/`，不涉及 Halo 仓库。
 
-## 3. Functional Requirements
+## 3. Glossary
 
-### REQ-001: 全局主题入口
+| 术语 | 含义 |
+|---|---|
+| 儿童模式（Kids Mode） | 全局显示偏好，通过 `html.child` + `data-child-mode` 表达，只影响展示与可选择性，不改变订单数据结构 |
+| 超辣菜品 | `product.options.spicy` 含 `menu.option.super_spicy` 的菜品（当前为 `p1`、`p2` 两道锅底） |
+| 模式叠加 | `html` 同时具备 `child`、`elderly`、`dark` 中的多个类，各模式只管自己的维度 |
+| 常规模式 | 儿童模式关闭状态；既有老人/夜间模式与业务行为完全保持不变 |
 
-- User Story: 作为就餐用户，我希望在首页、欢迎页和主流程顶栏找到主题入口，以便暗光环境下一键切换到可读的夜间模式。
+## 4. Functional Requirements
+
+### REQ-001: 儿童模式全局入口
+
+- User Story: 作为儿童或代其操作的家长，我希望在首页、欢迎页和主流程顶栏找到儿童模式入口，以便随时一键开启更简洁友好的点单界面。
 - Priority: P0
-- Description: 应用在 `#/home`、`#/welcome` 与主流程视图的顶栏提供同一语义的浅色/深色切换入口。点击后全局主题立即切换，无需刷新页面。
+- Description: 在 `#/home`、`#/welcome` 与主流程视图（`#/menu`、`#/order`、`#/checkout`）顶栏提供儿童模式入口，交互范式与 `ThemeToggle` 一致：图标按钮（lucide `Baby`），开启时图标高亮，具备 `aria-label`（开启/关闭儿童模式）与 `aria-pressed`。点击后全局立即切换，无需刷新；TopBar 切换附带 toast 反馈（"已开启儿童模式" / "已关闭儿童模式"）。
 
 Acceptance Requirements (EARS):
 
-- REQ-001.1: The system shall 在 `#/home`、`#/welcome` 和 `#/menu`、`#/order`、`#/checkout` 任一视图提供可聚焦、可触发的主题入口。
-- REQ-001.2: When 用户触发主题入口，the system shall 立即切换浅色/深色并同步所有可见界面。
-- REQ-001.3: If 入口交互失败或后续渲染异常，the system shall 保持当前主题、路由与既有业务状态，不产生订单、购物车或桌台数据变更。
-- REQ-001.4: When 入口获得焦点，the system shall 显示可辨识的焦点状态并保持触控目标符合现有组件规范。
+- REQ-001.1: The system shall 在 `#/home`、`#/welcome`、`#/menu`、`#/order`、`#/checkout` 提供可聚焦、可触发的儿童模式入口。
+- REQ-001.2: When 用户触发任一入口，the system shall 立即在 `html` 上切换 `child` 类并同步 `data-child-mode` 为 `on` / `off`。
+- REQ-001.3: When 儿童模式状态变化，the system shall 同步所有已挂载入口的 `aria-label` 与 `aria-pressed`，不出现入口状态不一致。
+- REQ-001.4: When 入口获得键盘焦点，the system shall 显示可辨识焦点状态并支持 Enter/Space 触发。
+- REQ-001.5: If 入口交互失败或后续渲染异常，the system shall 保持购物车、订单、桌台与路由状态不变。
 
 Gherkin:
 
 ```gherkin
-Scenario: 从主流程顶栏切换主题
-  Given 用户已进入 #/menu 并处于浅色模式
-  When 用户通过键盘触发主题入口
-  Then 全局界面立即切换为夜间模式，且无需刷新页面
-  And 购物车、订单、桌台和路由保持不变
+Scenario: 从首页开启儿童模式并进入点餐页
+  Given 用户已进入 #/home 并处于常规模式
+  When 用户点击右上角儿童模式入口
+  Then html 元素立即带有 child 类且 data-child-mode 为 on
+  And 入口 aria-pressed 为 true
+  When 用户进入点餐页
+  Then 儿童模式仍然生效且列表为简化展示
+  And 购物车、订单与路由未因切换而改变
 ```
 
-### REQ-002: 默认主题策略
+### REQ-002: 儿童模式偏好持久化
 
-- User Story: 作为首次访问用户，我希望默认主题贴近系统偏好，以便减少暗光环境下的手动调整。
+- User Story: 作为同一台设备上的用户，我希望下次打开仍是儿童友好界面，不需要每次重新设置。
 - Priority: P0
-- Description: 无有效保存选择时，应用在初始化读取一次浏览器 `prefers-color-scheme`。系统偏好为 dark 时首屏使用夜间模式；系统偏好为 light、未声明或能力不可用时使用浅色。保存的用户选择始终优先于系统偏好。
+- Description: 使用 `localStorage` 键 `child-mode`，值仅接受 `'true'` / `'false'`，与 `elderly-mode`、`theme-mode`、`i18nextLng` 互不影响。`index.html` 在 React 挂载前读取并设置 `html.child` 与 `data-child-mode`，避免刷新闪烁。状态由 `App` 统一持有并向下传递（TopBar 受控；HomeView / WelcomeView 可自管理），保证同期所有入口一致。
 
 Acceptance Requirements (EARS):
 
-- REQ-002.1: When 本地无 `theme-mode` 且 `prefers-color-scheme` 为 dark，the system shall 在首屏渲染夜间模式。
-- REQ-002.2: When 本地无 `theme-mode` 且系统偏好为 light、未声明或读取能力不可用，the system shall 在首屏渲染浅色模式。
-- REQ-002.3: When 本地保存值为 `light` 或 `dark`，the system shall 优先应用该保存值并忽略本次系统偏好。
-- REQ-002.4: When `localStorage.theme-mode` 为非法值，the system shall 将其视为未保存并按默认策略推断。
-- REQ-002.5: While 应用运行期间系统 `prefers-color-scheme` 发生变化，the system shall 不自动切换；后续访问按已有优先级重新初始化。
+- REQ-002.1: When 用户开启儿童模式后刷新或重新打开页面，the system shall 首帧即渲染儿童模式，不出现常规界面闪烁。
+- REQ-002.2: When `localStorage.child-mode` 为 `'true'` / `'false'`，the system shall 按该值初始化；为其他值（含空串、`'yes'`）时按未保存处理，默认关闭。
+- REQ-002.3: While 儿童模式开启，the system shall 不读写 `elderly-mode`、`theme-mode` 与 `i18nextLng`。
+- REQ-002.4: When 用户从首页或欢迎页开启后进入其他视图，the system shall 保持儿童模式状态。
 
 Gherkin:
 
 ```gherkin
-Scenario: 首次访问跟随系统偏好
-  Given 本地未保存 theme-mode
-  And 系统 prefers-color-scheme 为 dark
+Scenario: 刷新后保持儿童模式
+  Given 用户已开启儿童模式
+  When 用户刷新点餐页
+  Then 页面首帧即为儿童模式
+  And html 具有 child 类且 data-child-mode 为 on
+  And localStorage.child-mode 为 true
+```
+
+```gherkin
+Scenario: 非法保存值按未保存处理
+  Given localStorage.child-mode 为非法值
   When 用户进入应用
-  Then 首屏渲染夜间模式
-  And data-theme-mode 为 dark
+  Then 儿童模式默认关闭
+  And 页面不出现错误提示
 ```
 
-```gherkin
-Scenario: 用户选择优先于系统偏好
-  Given 系统 prefers-color-scheme 为 dark
-  And 本地 theme-mode 已保存为 light
-  When 用户进入应用
-  Then 首屏渲染浅色模式
-```
+### REQ-003: 超辣菜品默认隐藏与超级辣禁用
 
-### REQ-003: 主题状态与本机持久化
-
-- User Story: 作为返回用户，我希望应用记住我上次选择的亮度模式，以便刷新或再次进入时继续使用熟悉的界面。
+- User Story: 作为儿童或家长，我希望超辣锅底默认不出现，即使手动展开也无法选择超级辣，以免误点到不宜的辣度。
 - Priority: P0
-- Description: 用户显式切换后，应用在本设备浏览器保存 `theme-mode=light|dark`，并同步 `html.dark`、`data-theme-mode` 和 `meta[name="theme-color"]`。后续同浏览器访问优先应用保存值；存储不可用时降级为当次内存态。
+- Description: 以 `isSpicyForChildren(product)`（辣度选项包含 `menu.option.super_spicy`）作为唯一判定。儿童模式开启时该类菜品在列表中默认隐藏，并用说明条展示「已隐藏 N 道超辣菜品」；用户可点击「看看超辣」展开（按钮切换为「收起超辣」），再次收起。展开后打开该类菜品规格弹窗：**显示辣度区，微辣/中辣/重辣可选并即时生效，「超级辣」置灰禁用**（`disabled`、不可聚焦触发、不弹风险提示、不可进入选中态），加入购物车时规格中不含超级辣。售罄菜品不计入隐藏数量；隐藏数量为 0 时不显示展开按钮。儿童模式关闭后，既有 `e2e/super-spicy.spec.ts` 行为不变。
 
 Acceptance Requirements (EARS):
 
-- REQ-003.1: When 用户显式切换到 dark 或 light，the system shall 更新 `html.dark`、`data-theme-mode` 与 `meta[name="theme-color"]`。
-- REQ-003.2: When 用户显式选择后刷新或再次进入同一浏览器，the system shall 渲染该保存值对应的模式。
-- REQ-003.3: When 应用加载，the system shall 在 React 挂载前应用主题，避免用户可见的主题闪烁。
-- REQ-003.4: If `localStorage` 读取或写入不可用，the system shall 在当次页面会话内继续支持主题切换，不抛出用户可见错误，不阻塞点餐主流程。
-- REQ-003.5: When 本机持久化不可用且用户切换主题，the system shall 不向网络或后端上报主题数据；下次进入按默认策略推断。
+- REQ-003.1: When 儿童模式开启且用户进入 `#/menu`，the system shall 默认不展示含超级辣辣度的菜品，并显示已隐藏数量。
+- REQ-003.2: When 用户点击「看看超辣」，the system shall 显示这些菜品；再次点击「收起超辣」shall 重新隐藏。
+- REQ-003.3: While 儿童模式开启且打开含辣度的菜品规格弹窗，the system shall 显示辣度区，其中「超级辣」处于禁用态，点击或键盘触发均不改变辣度且不弹出风险提示。
+- REQ-003.4: When 儿童模式下用户选择微辣/中辣/重辣并加入购物车，the system shall 使用所选辣度写入规格，不出现超级辣或风险确认文案。
+- REQ-003.5: When 儿童模式关闭，the system shall 恢复常规超级辣风险提示流程，既有 `super-spicy.spec.ts` 全部通过。
+- REQ-003.6: If 某超辣菜品售罄，the system shall 不将其计入「已隐藏 N 道超辣菜品」数量。
 
 Gherkin:
 
 ```gherkin
-Scenario: 显式切换后保持偏好
-  Given 用户处于浅色模式
-  When 用户切换到夜间模式并刷新页面
-  Then 页面仍渲染夜间模式
-  And localStorage.theme-mode 为 dark
-  And html 具有 dark 类与 data-theme-mode=dark
+Scenario: 儿童模式默认隐藏超辣锅底
+  Given 用户已开启儿童模式
+  When 用户进入 #/menu
+  Then 推荐列表不出现「牛油麻辣锅」
+  And 页面显示「已隐藏 2 道超辣菜品」
+  When 用户点击「看看超辣」
+  Then 「牛油麻辣锅」重新出现
 ```
 
 ```gherkin
-Scenario: 存储不可用时降级
-  Given 浏览器禁用或限制 localStorage
-  When 用户在当前会话切换主题
-  Then 主题在当前会话内立即生效
-  And 页面不出现存储失败错误
-  And 点餐、订单与结账流程可继续使用
+Scenario: 展开后超级辣禁用
+  Given 用户已开启儿童模式并点击「看看超辣」
+  When 用户打开「牛油麻辣锅」规格弹窗
+  Then 辣度区显示「微辣」「中辣」「重辣」「超级辣」
+  And「超级辣」处于禁用态
+  When 用户点击「超级辣」
+  Then 不弹出风险提示且辣度为未选中该档
+  When 用户选择「中辣」并点击「就要这一份」
+  Then 本桌购物车中出现该菜品且规格为「中辣」
 ```
 
-### REQ-004: 夜间模式视觉与交互一致性
+### REQ-004: 菜品展示与规格弹窗简化
 
-- User Story: 作为暗光环境用户，我希望夜间模式覆盖完整界面并保持品牌识别与操作层级，以便清晰查看菜品、价格、订单和结账信息。
+- User Story: 作为儿童，我希望卡片只显示菜品名和价格、弹窗只问份量和口味，以便更轻松地做选择。
 - Priority: P0
-- Description: 夜间模式覆盖首页、欢迎页、点餐、订单、结账、服务弹层、购物车、演示控制台、风险提示、Toast、主 CTA 和移动端底部导航。暗色界面保持品牌暖色识别、卡片层级、图标语义、状态冗余、焦点可见性和既有触控目标。
+- Description: 儿童模式下菜品卡片隐藏描述、人气/推荐/新品徽章、图片渐变遮罩与「本桌已点 N」，仅保留图片、菜品名与价格（价格后缀为「份」）。列表顶部显示儿童模式说明条。规格弹窗只保留图片、描述、价格、份量/口味与辣度区（按 REQ-003），移除「谁点了」，主按钮文案「就要这一份」，`orderedBy` 固定为 `diners[0]`。关闭儿童模式后信息立即恢复常规展示。
 
 Acceptance Requirements (EARS):
 
-- REQ-004.1: When 夜间模式激活，the system shall 对核心页面、弹层、Toast、底部导航和主 CTA 应用一致暗色语义。
-- REQ-004.2: When 夜间模式展示正文、价格、订单状态、售罄提示、风险提示或按钮文案，the system shall 保持不低于 WCAG AA 的对比度。
-- REQ-004.3: When 用户在夜间模式使用键盘、Dialog、Toast、老人模式或既有交互，the system shall 保持可辨识焦点、正确层级和可操作触控范围。
-- REQ-004.4: When 夜间模式包含图片、遮罩、状态标识或辅助说明，the system shall 保持关键信息不被遮挡且不以颜色作为唯一识别方式。
-- REQ-004.5: If 任一新增或既有浅色类缺少集中暗色映射并造成界面残留不可读浅色块，the system shall 视为不符合本需求。
+- REQ-004.1: While 儿童模式开启，the system shall 在任一菜品卡片不展示描述、徽章与「本桌已点」。
+- REQ-004.2: While 儿童模式开启，the system shall 以「份」作为价格后缀，并展示儿童模式说明条。
+- REQ-004.3: While 儿童模式开启，the system shall 在规格弹窗不展示「谁点了」区域，主按钮为「就要这一份」。
+- REQ-004.4: When 儿童模式下用户点击「就要这一份」，the system shall 将该菜品加入本桌购物车，`orderedBy` 为当前首位就餐者。
+- REQ-004.5: When 儿童模式关闭，the system shall 立即恢复描述、徽章、「本桌已点」、「谁点了」与「加入本桌购物车」的常规展示。
 
 Gherkin:
 
 ```gherkin
-Scenario: 夜间模式覆盖弹层与导航
-  Given 夜间模式已激活
-  When 用户打开购物车弹层或服务弹层
-  Then 弹层表面、文字、边框、按钮和遮罩使用暗色语义
-  And 移动端底部导航保持可读且状态可辨识
+Scenario: 儿童模式卡片与弹窗精简
+  Given 用户已开启儿童模式
+  When 用户查看菜品列表
+  Then 卡片只显示图片、名称和「¥金额 份」
+  And 不显示描述、徽章与「本桌已点」
+  When 用户打开任一菜品规格弹窗
+  Then 不显示「谁点了」
+  And 主按钮为「就要这一份」
 ```
 
-### REQ-005: 双语与状态反馈
+### REQ-005: 儿童友好视觉与触控
 
-- User Story: 作为中文或英文用户，我希望主题入口有对应语言的可访问名称，以便理解当前操作目标而不依赖颜色判断。
+- User Story: 作为儿童，我希望按钮更大、更好点，界面颜色更轻松，减少误触和信息干扰。
 - Priority: P1
-- Description: 主题入口的可访问名称与任何新增用户可见文案走 i18n，中文和英文同步维护。主题状态至少通过图标变化、`aria-label` 或界面模式提供非颜色唯一反馈。
+- Description: `html.child` 下根字号放大至 112.5%；主要交互控件命中高度 ≥48px，加菜按钮 52px，移动端底部导航 ≥56px；卡片图片区加高、正文内边距加大、菜品名与价格字号提升。页面底色与次级面板向奶油黄偏移（`#fdf6e4` / `#f9eccb`），背景点阵改为琥珀色，装饰性模糊光斑不透明度降低，按钮统一大圆角。辣红仍只用于价格与主操作。所有新色值只出现在 `src/index.css` 的 `.child` / `.dark.child` 区块，组件内不新增未登记十六进制色值。
 
 Acceptance Requirements (EARS):
 
-- REQ-005.1: When 当前语言为中文或英文，the system shall 显示对应语言的主题入口可访问名称。
-- REQ-005.2: When 主题状态变化，the system shall 至少通过图标变化、`aria-label` 或界面模式提供非颜色唯一感知。
-- REQ-005.3: If 新增主题相关用户可见文案，the system shall 同步提供 zh/en 文案，不使用未翻译硬编码文本。
+- REQ-005.1: While 儿童模式开启，the system shall 使加菜按钮、分类 chip、规格选项等主要控件命中高度 ≥48px，加菜按钮 ≥52px。
+- REQ-005.2: While 儿童模式开启，the system shall 以儿童模式暖色底替换页面与次级面板底色，且主卡片与页面底色仍可区分。
+- REQ-005.3: While 儿童模式开启，the system shall 保持价格与主操作为品牌辣红，不以颜色作为唯一状态载体。
+- REQ-005.4: When 视口宽度为 375px 与桌面宽度，the system shall 无横向溢出、无控件重叠，卡片由两列变为单列时可正常阅读。
 
 Gherkin:
 
 ```gherkin
-Scenario: 英文环境下理解切换目标
-  Given 应用语言为英文且当前为浅色模式
-  When 用户聚焦主题入口
-  Then 可访问名称为英文的“切换至夜间模式”语义
-  And 图标与界面模式提供非颜色冗余反馈
+Scenario: 儿童模式触控与配色
+  Given 用户已开启儿童模式并进入点餐页
+  When 用户测量菜品卡片加菜按钮
+  Then 其高度不小于 52px 且明显大于常规模式
+  And 页面底色为儿童模式暖色底
 ```
 
-## 4. UX Design
+### REQ-006: 与老人模式、夜间模式叠加
+
+- User Story: 作为同时需要大字号、暗色和儿童简化的用户，我希望三种模式可以同时开启且互不覆盖。
+- Priority: P0
+- Description: 儿童模式只新增 `html.child`，不读写 `html.dark` / `html.elderly`。`src/index.css` 中 `.dark.child` 只重声明颜色，不声明尺寸；颜色优先级为夜间映射 > 儿童暖色映射。老人模式 125% 与儿童模式 112.5% 字号叠乘。任一模可独立关闭且不影响另外两个。
+
+Acceptance Requirements (EARS):
+
+- REQ-006.1: When 三种模式同时开启，the system shall 使 `html` 同时包含 `child`、`dark`、`elderly` 三个类。
+- REQ-006.2: While 夜间 + 儿童同时开启，the system shall 使用夜间色值（如菜品卡片背景 `rgb(29, 25, 21)`），儿童模式只保留尺寸与简化。
+- REQ-006.3: While 老人 + 儿童同时开启，the system shall 使根字号大于默认 16px（两者叠乘）。
+- REQ-006.4: When 用户单独关闭任一模式，the system shall 保持另外两个模式的状态与表现不变。
+
+Gherkin:
+
+```gherkin
+Scenario: 三模式叠加
+  Given 用户同时开启儿童模式、夜间模式与老人模式
+  When 用户查看点餐页
+  Then 页面为大字号、大触控目标、简化信息且为夜间配色
+  When 用户关闭夜间模式
+  Then 儿童模式与老人模式保持开启
+  And 页面恢复儿童模式暖色底
+```
+
+### REQ-007: 存储不可用降级
+
+- User Story: 作为使用隐私受限浏览器的用户，我希望禁用存储时仍能正常开关儿童模式，不被错误提示打断点餐。
+- Priority: P0
+- Description: 对 `localStorage` 的读、写全部 `try/catch`。读取失败按默认关闭处理；写入失败时以模块级会话 fallback 记忆本次选择，并在后续初始化中优先于不可靠的旧存储值，跨路由组件重挂载保持；`index.html` 初始化脚本同样包裹 `try/catch`。不弹用户可见错误。
+
+Acceptance Requirements (EARS):
+
+- REQ-007.1: If `localStorage` 访问抛异常，then the system shall 仍支持儿童模式开关并即时生效，页面无未捕获异常。
+- REQ-007.2: If 存储写入失败，then the system shall 在当前会话跨视图切换时保持本次选择。
+- REQ-007.3: If 存储读写失败，then the system shall 不阻塞桌台绑定、点菜、购物车、下单与结账流程。
+
+Gherkin:
+
+```gherkin
+Scenario: 存储被禁用时仍可切换
+  Given 浏览器访问 localStorage 抛出 SecurityError
+  When 用户点击儿童模式入口
+  Then html 具有 child 类且说明条出现
+  When 用户再次点击入口
+  Then 儿童模式关闭
+  And 页面无未捕获异常与错误提示
+```
+
+### REQ-008: 双语与可访问性
+
+- User Story: 作为中文或英文用户，我希望入口与新增文案有对应语言的可访问名称，以便理解当前状态。
+- Priority: P1
+- Description: 新增文案（`aria_child_on`、`aria_child_off`、`add_dish_aria`、`per_portion`、`child_banner_title`、`child_hidden`、`child_spicy_show`、`child_spicy_hide`、`child_add_to_cart`）在 `src/i18n.ts` 的 zh/en 同步维护。菜品卡片加菜按钮具备包含菜品名的 `aria-label`。
+
+Acceptance Requirements (EARS):
+
+- REQ-008.1: When 当前语言为中文或英文，the system shall 显示对应语言的儿童模式入口可访问名称与新增可见文案。
+- REQ-008.2: While 儿童模式开启，the system shall 为菜品加菜按钮提供包含菜品名的可访问名称。
+- REQ-008.3: If 新增儿童模式用户可见文案缺少 zh/en 任一侧，then the system shall 视为不符合本需求。
+
+Gherkin:
+
+```gherkin
+Scenario: 英文环境下的儿童模式
+  Given 应用语言切换为英文
+  When 用户聚焦儿童模式入口
+  Then 可访问名称为 "Enable kids mode"
+  When 用户开启儿童模式
+  Then 说明条与目标按钮显示英文文案
+```
+
+## 5. UX Design
 
 ### 体验目标与设计原则
 
-- 夜间模式是全局主题，不是局部反色；页面、卡片、面板、弹层、导航和反馈在同一模式下保持统一层级。
-- 保持「暖纸沸点」的品牌识别：暗色底与暖色前景保留温度，辣红继续用于动作、选择、风险或服务语义，琥珀用于进度或注意语义。
-- 颜色不是唯一状态载体；售罄、风险、选中、等待和焦点仍依赖文字、图标、数值或形状冗余。
-- 老人模式与夜间模式独立叠加：字号增强由 `html.elderly` 控制，暗色配色由 `html.dark` 控制。
+- 儿童模式是「简化 + 放大 + 更安全」的显示层叠加，不是独立页面；不改变点单主流程与业务状态。
+- 儿童可自主理解并操作：入口图标为 `Baby`，开启后高亮；说明条用一句话说清「只显示温和好吃的菜」和隐藏数量。
+- 安全优先但不阻拦：超辣菜品默认不出现在视线中；用户主动展开时，超级辣仍不可选，风险不交给儿童自行确认。
+- 三种模式正交：老人管字号与对比、夜间管色值、儿童管尺寸/简化/暖色（夜间开启时让位给夜间色值）。
 
-### 页面与入口范围
+### 页面 / 模块 / 入口范围
 
-| 位置 | 交互 | 预期反馈 | 约束 |
+| 位置 | 交互 | 反馈 | 约束 |
 |---|---|---|---|
-| `#/home` | 右上主题入口 | 全局立即切换 | 不遮挡桌台选择或主要操作 |
-| `#/welcome` | 右上主题入口 | 全局立即切换 | 不遮挡欢迎信息与进入点餐入口 |
-| `#/menu`、`#/order`、`#/checkout` | 主流程顶栏主题入口 | 全局立即切换 | 与语言、老人模式、服务、演示控制台共存 |
-| Dialog / Toast / 购物车 / 演示控制台 | 跟随全局状态 | 无独立主题入口 | 不出现弹层与页面主题冲突 |
-| 移动端底部导航 | 跟随全局状态 | 背景、图标、文字和激活态可读 | 保留 safe area 与既有触控目标 |
+| `#/home` 右上角入口组 | 点击儿童模式图标 | 全局立即切换 | 与 `ThemeToggle` 并排，不遮挡桌台选择 |
+| `#/welcome` 右上角入口组 | 点击儿童模式图标 | 全局立即切换 | 与 `ThemeToggle` 并排，不遮挡进入点餐 |
+| `#/menu`、`#/order`、`#/checkout` 顶栏 | 点击儿童模式图标 | 全局立即切换 + toast | 位于夜间与老人模式入口之间，与既有图标按钮同尺寸 |
+| `#/menu` 列表区 | 说明条 + 「看看超辣/收起超辣」 | 隐藏/展开超辣菜品 | 隐藏数量为 0 时不显示展开按钮 |
+| 菜品规格弹窗 | 份量/口味/辣度（超级辣禁用） | 选择即时生效 | 无「谁点了」；主按钮「就要这一份」 |
 
 ### 核心体验路径
 
-1. 用户进入应用，系统按保存值或系统偏好渲染首屏。
-2. 用户通过主题入口切换，界面即时响应，入口目标与可访问名称同步变化。
-3. 用户刷新或再次进入，应用优先使用显式保存值。
-4. 用户在开启老人模式或切换语言后继续使用主题，字号、文案与暗色语义同时生效。
+1. 用户在首页/欢迎页/顶栏开启儿童模式，界面立即简化、控件变大、底色变暖。
+2. 用户浏览列表，看到说明条与已隐藏数量；需要时点「看看超辣」检查。
+3. 用户打开规格弹窗，只面对份量/口味和不可选的超级辣，点「就要这一份」加入本桌购物车。
+4. 刷新或再次进入，首帧保持儿童模式；叠加夜间/老人模式时各自维度继续生效。
 
-### 分支路径与异常
+### 分支路径 / 异常路径
 
 | 场景 | 系统响应 |
 |---|---|
-| 首次访问、无保存值 | 初始化读取一次系统偏好；无匹配或不可用为浅色 |
-| 非法保存值 | 视为未保存，按默认策略推断 |
-| `localStorage` 不可用 | 当次内存态切换可用；无用户可见错误；下次进入按默认策略 |
-| 入口异常或渲染异常 | 保持当前主题与业务状态；不改变订单、购物车、桌台或路由 |
-| 系统偏好运行时变化 | 本次不自动联动；用户仍可手动切换 |
+| 超辣菜品全部售罄 | 隐藏数量不计售罄菜品；数量为 0 时只显示说明条，不显示展开按钮 |
+| 存储非法值 | 按未保存处理，默认关闭 |
+| `localStorage` 不可用 | 会话内可切换；刷新后默认关闭；无错误提示 |
+| 权限/网络 | 无网络依赖，不涉及 |
+| 儿童模式关闭时正在展开 | 退出儿童模式后恢复常规列表，超级辣风险提示逻辑恢复 |
+| 点击超级辣（儿童模式展开后） | 按钮禁用，无响应、无弹窗 |
 
-### 文案与状态说明
+### 交互与状态说明
 
-- 当前浅色模式入口使用“切换至夜间模式”语义；当前夜间模式入口使用“切换至浅色模式”语义。
-- zh/en 文案保存在 `src/i18n.ts` 的 `common.*` 分组并同步维护。
-- 图标使用 Moon / Sun 的语义变化；界面模式本身是辅助状态反馈，不要求新增 Toast。
+- 说明条：`儿童模式 · 只显示温和好吃的菜` + `已隐藏 N 道超辣菜品`；按钮 `看看超辣` ↔ `收起超辣`，`aria-pressed` 反映展开态。
+- 入口：`aria-label` 随状态在「开启儿童模式 / 关闭儿童模式」间切换，`aria-pressed` 与图标高亮同步。
+- 弹窗：儿童模式与常规模式为两套渲染分支，避免残留常规模式控件。
 
-## 5. Backend/Data
+### 文案与可理解性
 
-本需求不涉及后端服务、API、权限、订单数据结构或服务端存储变更。
+- 所有新增文案 zh/en 同步；中文用短句、避免生僻词；英文使用 "Kids Mode"。
+- 不依赖颜色表达状态：展开态由按钮文案与 `aria-pressed` 冗余表达，禁用态由 `disabled` 语义表达。
 
-浏览器端状态与存储契约如下：
+### 视觉与响应式约束
+
+- 色值只写进 `src/index.css` 的 `.child` / `.dark.child`；组件只用 Tailwind 语义类或已登记的 `child-*` 辅助类。
+- 375px 视口卡片单列、控件不重叠；桌面两列布局保持。
+- 全局 250ms 过渡沿用，不额外引入动画。
+
+## 6. Backend/Data
+
+本需求不涉及后端服务、API、权限、订单数据结构或服务端存储变更；`server/` 不修改。浏览器端状态与存储契约如下：
 
 | 对象 | 契约 | 优先级 / 校验 | 兼容性 |
 |---|---|---|---|
-| `localStorage.theme-mode` | 仅保存 `light` 或 `dark` | 用户显式选择 > 系统偏好 > `light`；非法值按未保存处理 | 新增 key，不改 `i18nextLng`、`elderly-mode` 或购物车/订单内存数据 |
-| `html.dark` | dark 为唯一全局主题类 | 随有效主题同步 | 复用 Tailwind `darkMode: 'class'` |
-| `data-theme-mode` | 值为 `light` 或 `dark` | 随有效主题同步 | 供测试与状态检查使用 |
-| `meta[name="theme-color"]` | light 状态使用浅色基线，dark 状态使用暗色基线 | 随有效主题同步 | 不作为业务判断依据 |
-| 初始化读取 | 在 React 挂载前读取一次 | 本地有效保存值优先，否则读取 `prefers-color-scheme`，失败为浅色 | 不引入阻塞网络请求 |
+| `localStorage.child-mode` | 仅 `'true'` / `'false'` | 会话 fallback > localStorage > 默认 `false`；非法值按未保存处理 | 新增 key，不改 `elderly-mode`、`theme-mode`、`i18nextLng` 或订单内存数据 |
+| `html.child` | 儿童模式唯一全局类 | 随有效状态同步 | 与 `html.dark`、`html.elderly` 并行，不互相读写 |
+| `data-child-mode` | `on` / `off` | 随有效状态同步 | 供测试与状态检查使用 |
+| `index.html` 初始化 | React 挂载前读取一次 | 读取异常为关闭 | 避免首帧闪烁 |
+| 会话 fallback | 模块级 `fallbackChildMode` | 写入失败后优先于旧存储值 | 跨路由保持，刷新后失效（存储不可用时） |
+| 视图状态来源 | `App` 统一持有 `child` 并向下传递 | TopBar 受控；HomeView/WelcomeView 可自管理 | 不进入订单 reducer，不作为业务态 |
 
 迁移与回滚：
 
-- 不迁移既有数据；旧版本没有 `theme-mode` 时按默认策略推断。
-- 存储失败不产生数据损坏；回滚实现时遗留的 `theme-mode` 仅是本机偏好数据，不作为服务端契约，可安全忽略。
+- 无数据迁移；旧版本无 `child-mode` 时默认关闭。
+- 回滚时遗留的 `child-mode` 仅为本机显示偏好，旧版本忽略即可，无需清理脚本。
 
-## 6. NFR / DFX
+## 7. NFR / DFX
 
-### 可访问性与视觉
+| 类别 | 要求 | 验收方法 |
+|---|---|---|
+| 可访问性 | 入口有可访问名称与 `aria-pressed`，焦点可见，键盘可操作；主要控件命中 ≥48px；颜色非唯一状态载体；禁用态使用 `disabled` 语义 | Playwright E2E + 人工键盘检查 |
+| 兼容性 | 仅用既有 Tailwind 3.4 `darkMode: 'class'` 与 `src/index.css` 集中映射；不新增依赖；hash 深链接、前进/后退与 GitHub Pages 子路径不受影响 | `npm run build`、`npm run lint`、路由 E2E |
+| 性能 | 纯前端 class 切换，无额外网络请求；首帧初始化无闪烁，不引入大型资源 | 构建产物检查 + 首屏观察 |
+| 稳定性 | `localStorage` 异常降级；不改变既有业务状态；常规模式超级辣流程无回归 | E2E + `super-spicy.spec.ts` |
+| 国际化 | 新增文案 zh/en 同步 | 语言切换检查 |
+| 视觉规范 | 新色值仅在 `.child` / `.dark.child` 集中映射；辣红仅用于动作与语义 | 设计系统核对 |
 
-- 正文、价格、关键状态、风险提示、按钮文案和必要 UI 边界满足 WCAG AA。
-- 焦点可见、键盘可操作，交互目标保持现有组件规范。
-- 状态反馈不得只依赖颜色；暗色适配必须覆盖弹层、Toast、底部导航和主 CTA。
+## 8. Test Cases
 
-### 兼容性
-
-- 仅作用浏览器端 React SPA；不改变健康检查 Express 服务。
-- 支持现代浏览器环境；`localStorage` 不可用时按会话内存态降级。
-- 老人模式可叠加；hash 深链接、浏览器前进/后退和 GitHub Pages 子路径部署不受影响。
-
-### 性能
-
-- 主题初始化在 React 挂载前完成，不引入阻塞式网络或后端请求。
-- 主题切换遵循既有 250ms 颜色过渡，无明显卡顿或可见主题闪烁。
-
-### 安全与隐私
-
-- 主题偏好仅保存在本设备浏览器，不上报、不同步、不关联用户身份。
-- 不新增 Cookie、埋点或第三方存储。
-
-### 发布与回滚
-
-- 功能可随前端版本直接发布；无数据库迁移和服务端灰度。
-- 回滚仅移除入口与主题状态逻辑即可；本机遗留 `theme-mode` 不阻塞旧版本，也不需要清理脚本。
-
-## 7. Test Cases
-
-### TC-001: 三类入口可达并即时切换（REQ-001）
+### TC-001: 三处入口可切换并即时生效（REQ-001、REQ-008）
 
 | 项 | 内容 |
 |---|---|
-| 前置条件 | 应用可访问，初始为浅色模式 |
-| 步骤 | 分别进入 `#/home`、`#/welcome`、`#/menu`、`#/order`、`#/checkout`；检查入口可见、可聚焦；触发切换 |
-| 预期 | 每个入口可操作；切换立即生效；路由和业务状态不变 |
-| 类型 | Playwright E2E + 人工键盘检查 |
+| 前置条件 | 儿童模式关闭，进入 `#/home` |
+| 步骤 | 检查首页入口唯一且 `aria-pressed=false`；点击后断言 `html.child`、`data-child-mode=on`、`aria-pressed=true`、`localStorage['child-mode']=true`；进入 `#/menu` 后点击顶栏入口关闭；在 `#/welcome` 重复开关 |
+| 预期 | 每次点击立即生效，入口状态同步，路由与购物车不变 |
+| 类型 | Playwright E2E（`e2e/child-mode.spec.ts` REQ-001）+ 人工键盘检查 |
 
-### TC-002: 系统深色偏好默认夜间模式（REQ-002）
-
-| 项 | 内容 |
-|---|---|
-| 前置条件 | 清空本站 `localStorage`，浏览器 `colorScheme=dark` |
-| 步骤 | 首次进入应用 |
-| 预期 | `html` 含 `dark`；`data-theme-mode=dark`；首屏无浅色闪烁 |
-| 类型 | Playwright E2E |
-
-### TC-003: 无声明或系统浅色默认浅色（REQ-002）
+### TC-002: 列表简化、触控放大与默认隐藏超辣（REQ-003、REQ-004、REQ-005）
 
 | 项 | 内容 |
 |---|---|
-| 前置条件 | 清空本站 `localStorage`；系统偏好为 light、未声明或模拟不可用 |
-| 步骤 | 首次进入应用 |
-| 预期 | `html` 不含 `dark`；`data-theme-mode=light`；界面为浅色 |
-| 类型 | Playwright E2E / 单元或组件测试 |
+| 前置条件 | `?preview=menu` 常规模式 |
+| 步骤 | 记录卡片数与加菜按钮高度 → 开启儿童模式 → 比较；检查卡片无描述、无「本桌已点」；检查说明条文案与隐藏数量；点击「看看超辣」 |
+| 预期 | 卡片数减少 2；加菜按钮高度 ≥48px 且大于常规；说明条显示「已隐藏 2 道超辣菜品」；展开后超辣锅底重新出现 |
+| 类型 | Playwright E2E（REQ-002） |
 
-### TC-004: 用户选择优先于系统偏好（REQ-002、REQ-003）
-
-| 项 | 内容 |
-|---|---|
-| 前置条件 | `colorScheme=dark`，`localStorage.theme-mode=light` |
-| 步骤 | 进入应用并刷新 |
-| 预期 | 应用浅色模式，不因系统深色偏好切换 |
-| 类型 | Playwright E2E |
-
-### TC-005: 非法保存值按默认策略（REQ-002、REQ-003）
+### TC-003: 展开后辣度区可见且超级辣禁用（REQ-003）— **本轮新增**
 
 | 项 | 内容 |
 |---|---|
-| 前置条件 | `localStorage.theme-mode` 设置为非法值；分别模拟系统 dark / light |
-| 步骤 | 进入应用 |
-| 预期 | 非法值被忽略；按系统偏好或浅色兜底推断 |
-| 类型 | 单元测试 / Playwright E2E |
+| 前置条件 | 儿童模式开启，点击「看看超辣」，切到锅底分类 |
+| 步骤 | 打开超辣锅底规格弹窗；检查辣度区四个选项；检查「超级辣」按钮 `disabled`；点击「超级辣」；选择「中辣」；点击「就要这一份」 |
+| 预期 | 辣度区显示微辣/中辣/重辣/超级辣；超级辣禁用且点击无风险弹窗、不进入选中态；购物车规格为「中辣」，不含风险确认文案 |
+| 类型 | Playwright E2E（需新增用例）+ 人工点击检查 |
 
-### TC-006: 刷新与再次进入保持选择（REQ-003）
-
-| 项 | 内容 |
-|---|---|
-| 前置条件 | 用户已显式切换到 dark |
-| 步骤 | 刷新页面后再次切换到 light，并再次刷新 |
-| 预期 | 每次进入保持对应选择；`html.dark`、`data-theme-mode`、`localStorage.theme-mode` 一致 |
-| 类型 | Playwright E2E |
-
-### TC-007: 存储失败降级为内存态（REQ-003）
+### TC-004: 儿童模式规格弹窗精简（REQ-004）
 
 | 项 | 内容 |
 |---|---|
-| 前置条件 | 模拟读取或写入 `localStorage` 抛错 |
-| 步骤 | 初始化应用、切换主题、继续点餐操作 |
-| 预期 | 当次主题切换可用；无用户可见错误；业务流程继续；刷新后按默认策略 |
-| 类型 | 单元测试 / 组件测试 + 人工回归 |
+| 前置条件 | 儿童模式开启 |
+| 步骤 | 打开第一张菜品卡片的规格弹窗 |
+| 预期 | 主按钮为「就要这一份」；不显示「谁点了」；点击后本桌购物车出现该菜品 |
+| 类型 | Playwright E2E（REQ-003） |
 
-### TC-008: 夜间模式全量界面与对比度（REQ-004）
-
-| 项 | 内容 |
-|---|---|
-| 前置条件 | 夜间模式激活 |
-| 步骤 | 巡检首页、欢迎页、点餐、订单、结账、服务弹层、购物车、演示控制台、风险提示、Toast、主 CTA 和移动端底部导航；检查正文、价格、状态、边框、图片与遮罩 |
-| 预期 | 无不可读浅色残留；WCAG AA 对比度通过；层级、品牌识别和状态冗余保持 |
-| 类型 | 视觉审查 + 对比度检查 + Playwright E2E |
-
-### TC-009: 键盘焦点与弹层交互（REQ-001、REQ-004）
+### TC-005: 持久化与非法值（REQ-002）
 
 | 项 | 内容 |
 |---|---|
-| 前置条件 | 夜间模式激活 |
-| 步骤 | 用键盘聚焦主题入口；打开并关闭 Dialog、Toast、购物车或服务弹层 |
-| 预期 | 焦点可辨识；层级正确；弹层文字、按钮和关闭操作可读可用 |
-| 类型 | 人工键盘检查 + Playwright E2E |
+| 前置条件 | 开启儿童模式 |
+| 步骤 | 重新进入 `?preview=menu` 并刷新；再设置 `child-mode='yes'` 后刷新 |
+| 预期 | 刷新后 `html.child` 与说明条保持；非法值按关闭处理且无错误 |
+| 类型 | Playwright E2E（REQ-004）+ 非法值补充用例 |
 
-### TC-010: 老人模式与双语叠加（REQ-004、REQ-005）
-
-| 项 | 内容 |
-|---|---|
-| 前置条件 | 开启老人模式，夜间模式激活 |
-| 步骤 | 分别切换 zh/en；检查字号、半透明文字、按钮触控目标、焦点、主题入口可访问名称 |
-| 预期 | 字号增强与暗色配色叠加生效；对比度不劣化；zh/en 可访问名称同步 |
-| 类型 | 人工检查 + Playwright E2E |
-
-### TC-011: 业务与路由回归（全部 REQ）
+### TC-006: 三模式叠加与独立关闭（REQ-006）
 
 | 项 | 内容 |
 |---|---|
-| 前置条件 | 浅色与夜间模式分别激活 |
-| 步骤 | 覆盖桌台绑定、菜单选择、购物车、提交订单、服务、订单取消/进度、结账、演示控制台、hash 深链接与前进/后退 |
-| 预期 | 业务规则、路由和内存态不因主题切换改变；`npm run lint`、`npm run build`、全量 Playwright 通过 |
-| 类型 | 既有回归 + Playwright E2E + 构建/静态检查 |
+| 前置条件 | `?preview=menu` 常规模式 |
+| 步骤 | 依次开启儿童、夜间、老人模式；检查 `html` 三个类；读卡片背景色与根字号；再依次关闭夜间与老人 |
+| 预期 | 三模式共存；卡片背景为夜间 `rgb(29, 25, 21)`；根字号 >16px；单独关闭不影响儿童模式 |
+| 类型 | Playwright E2E（REQ-005） |
 
-## 8. Open Questions
+### TC-007: 存储禁用降级（REQ-007）
+
+| 项 | 内容 |
+|---|---|
+| 前置条件 | `addInitScript` 使 `window.localStorage` 访问抛 `SecurityError` |
+| 步骤 | 进入 `?preview=menu`，开启再关闭儿童模式 |
+| 预期 | 开关即时生效，说明条出现/消失，无 `pageerror` 与错误提示 |
+| 类型 | Playwright E2E（REQ-006） |
+
+### TC-008: 常规模式超级辣流程无回归（REQ-003.5）
+
+| 项 | 内容 |
+|---|---|
+| 前置条件 | 儿童模式关闭 |
+| 步骤 | 执行既有 `e2e/super-spicy.spec.ts` 全部用例 |
+| 预期 | 超级辣可见、点击弹风险提示、确认后可选中；全部通过 |
+| 类型 | 既有 Playwright E2E 回归 |
+
+### TC-009: 双语与可访问名称（REQ-008）
+
+| 项 | 内容 |
+|---|---|
+| 前置条件 | 儿童模式关闭 |
+| 步骤 | 切换到英文；检查入口 `aria-label`；开启儿童模式后检查说明条与按钮文案；再切回中文 |
+| 预期 | 英文显示 "Enable kids mode" 与英文说明条/按钮；中文与英文无缺失 key |
+| 类型 | Playwright E2E + 人工检查 |
+
+### TC-010: 响应式与视觉基线（REQ-005）
+
+| 项 | 内容 |
+|---|---|
+| 前置条件 | 儿童模式开启 |
+| 步骤 | 分别在 375×812 与 1280×720 截屏检查列表、说明条、规格弹窗、底部导航 |
+| 预期 | 无横向溢出与控件重叠；卡片单列/两列切换正常；暖色底与主卡可区分；辣红仅用于价格与主操作 |
+| 类型 | 视觉审查 + 截图对比 |
+
+## 9. Open Questions
 
 | ID | 问题 | 影响 | 决议 / 建议负责人 |
 |---|---|---|---|
-| OQ-001 | 是否演进为语义 token 体系？ | 长期维护成本；不影响本次用户可见行为 | 本次不演进；新增颜色类时同步集中映射。后续大规模组件改造时由 RD/Design 另立需求。 |
-| OQ-002 | 是否持续监听系统偏好运行时变化？ | 可选增强；会影响状态优先级语义 | 本次不做。如需增强，由 PM 另立需求并重新定义用户选择、系统偏好和会话状态的优先级。 |
+| OQ-001 | 当前分支 `40887cd` 儿童模式弹窗未渲染辣度区，与已确认契约「显示辣度区、超级辣禁用」不一致 | 影响 REQ-003 验收与 TC-003 | 已由用户确认取「显示+禁用」；由「开发与自测」节点补齐实现与 E2E，Owner：RD/QA |
+| OQ-002 | 是否需要家长锁（PIN/长按）才能关闭儿童模式 | 儿童保护强度；不影响本次验收 | 本次不做，沿用单点击开关；如需家长锁另行立项（PM） |
+| OQ-003 | 「儿童友好图标」是否需要品牌层替换全局图标集 | 品牌一致性 | 本次仅新增入口 `Baby` 图标；品牌图标资产走设计系统扩展（Design） |
+| OQ-004 | 未来新增辣度档位/新菜品时如何确保判定不漏 | 超辣判定准确性 | 判定集中在 `isSpicyForChildren`，新增档位时同步更新并补 TC-002/TC-003（RD） |
 
-## 9. Traceability
+## 10. Traceability
 
-| REQ | 关联设计/状态 | NFR | 测试 |
+| REQ | UX / 状态 | NFR | 测试 |
 |---|---|---|---|
-| REQ-001 | UX 页面与入口范围；`ThemeToggle` 语义入口 | 可访问性 | TC-001, TC-009, TC-011 |
-| REQ-002 | Backend/Data 初始化读取与优先级 | 兼容性 | TC-002, TC-003, TC-004, TC-005 |
-| REQ-003 | Backend/Data 本机存储契约与迁移回滚 | 性能、兼容性、隐私、发布回滚 | TC-004, TC-005, TC-006, TC-007 |
-| REQ-004 | UX 一致性、视觉语义；集中暗色映射 | 可访问性、视觉、性能 | TC-008, TC-009, TC-010, TC-011 |
-| REQ-005 | UX 文案与状态反馈 | 可访问性、兼容性 | TC-010, TC-011 |
+| REQ-001 | 入口范围；`ChildModeToggle`、`App` 状态持有 | 可访问性、国际化 | TC-001, TC-009 |
+| REQ-002 | 持久化与首帧初始化 | 稳定性、性能 | TC-005 |
+| REQ-003 | 说明条、展开/收起、辣度禁用 | 可访问性、稳定性 | TC-002, TC-003, TC-008 |
+| REQ-004 | 卡片与弹窗简化 | — | TC-002, TC-004 |
+| REQ-005 | 视觉基调、触控尺寸 | 视觉规范、可访问性 | TC-002, TC-010 |
+| REQ-006 | 三模式叠加 | 兼容性 | TC-006 |
+| REQ-007 | 存储降级 | 稳定性 | TC-007 |
+| REQ-008 | 文案与可访问名称 | 国际化、可访问性 | TC-001, TC-009 |
 
 ## API Design
 

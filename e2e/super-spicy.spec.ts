@@ -91,9 +91,11 @@ test.describe('超级辣锅底选项 - E2E 验收测试', () => {
     await page.getByRole('button', { name: '超级辣' }).click()
     await expect(page.getByText('风险提示')).toBeVisible()
     // Click the risk warning overlay (last data-state=open overlay = risk warning's overlay)
-    // Use force:true to bypass actionability checks since overlay intercepts events by design
+    // Use page.mouse.click at the overlay's top-left corner for reliable outside-click dispatch
     const overlay = page.locator('[data-state="open"][aria-hidden="true"]').last()
-    await overlay.click({ force: true, position: { x: 5, y: 5 } })
+    await expect(overlay).toBeVisible()
+    const overlayBox = await overlay.boundingBox()
+    await page.mouse.click(overlayBox!.x + 5, overlayBox!.y + 5)
     // Dialog closed
     await expect(page.getByText('风险提示')).not.toBeVisible()
     // 微辣 still selected, 超级辣 not selected

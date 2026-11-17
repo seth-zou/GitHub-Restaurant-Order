@@ -26,11 +26,13 @@ src/
 ├── data/menu.ts           # 菜品/分类/桌台静态数据
 ├── hooks/useElderlyMode.ts# 老人模式：localStorage + html.elderly
 ├── hooks/useThemeMode.ts  # 夜间模式：localStorage + html.dark
+├── hooks/useChildMode.ts  # 儿童模式：localStorage + html.child（与老人/夜间模式可叠加）
 ├── hooks/useViewRoute.ts  # 视图 ↔ URL hash 双向同步（含深链接/非法地址纠正）
 ├── lib/utils.ts           # cn（类名合并）、money（¥ 格式化）
 ├── components/            # 页面组件（HomeView/WelcomeView/MenuView/OrderView/CheckoutView 对应各视图）；通用件在 components/ui/（button、dialog）
 └── assets/                # hotpot/broth/beef/vegetables 图片
 e2e/super-spicy.spec.ts    # 超级辣风险提示 E2E 验收
+e2e/child-mode.spec.ts     # 儿童模式 E2E 验收
 e2e/view-routing.spec.ts   # 视图 URL hash 路由 E2E 验收
 index.html                 # 入口，含初始化语言的内联脚本
 tailwind.config.js         # 自定义色板；vite.config.ts 配 base './' 与 @ 别名
@@ -54,12 +56,14 @@ playwright.config.ts       # E2E 配置
 
 主题通过 Tailwind `darkMode: 'class'` 与 `html.dark` 控制；现有组件仍优先使用 Tailwind 语义色名，夜间模式在 `src/index.css` 做集中色值映射。默认优先级为用户选择 > 系统偏好 > 浅色，入口使用 `ThemeToggle`。全局颜色/字号变化有 250ms 过渡（`src/index.css`），老人模式切换无需额外动画。
 
+儿童模式通过 `html.child` + `data-child-mode` 控制，与 `html.elderly`、`html.dark` 相互独立可叠加：`src/index.css` 以 `.child` 前缀集中映射触控尺寸、暖色底和简化展示，`.dark.child` 仅保留尺寸、不覆盖夜间色值。入口为 `ChildModeToggle`（TopBar / HomeView / WelcomeView），菜单侧通过 `MenuView` 的 `child` prop 控制简化渲染与超辣锅底默认隐藏。
+
 ## 编码约定
 
 - 页面组件放 `src/components/`，通用件放 `src/components/ui/`；弹窗用封装的 `Dialog`，按钮用 CVA `Button`（default/secondary/outline/ghost），图标用 lucide-react 并靠 `currentColor` 继承。
 - 样式只用 Tailwind 类名，不用 CSS Modules / styled-components。
 - 新增 i18n 文案在 `src/i18n.ts` 的 zh/en 两处同步添加，按功能分组（`common.`、`menu.`、`cart.`、`order.` 等）。
-- 新增 `localStorage` 持久化一律 `try/catch` 包裹，不可用时降级内存态；现有 key：`i18nextLng`、`elderly-mode`（`true`/`false`）、`theme-mode`（`light`/`dark`）。
+- 新增 `localStorage` 持久化一律 `try/catch` 包裹，不可用时降级内存态；现有 key：`i18nextLng`、`elderly-mode`（`true`/`false`）、`theme-mode`（`light`/`dark`）、`child-mode`（`true`/`false`）。
 - 需要在 React 挂载前设置 html 属性/class 时，扩展 `index.html` 的内联脚本。
 - npm 源默认走 `https://registry.npmmirror.com`（见根目录与 `server/.npmrc`）。
 
