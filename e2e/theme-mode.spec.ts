@@ -253,7 +253,8 @@ test.describe('主题体验增强 - E2E 验收', () => {
     await expect(page.getByRole('heading', { name: '本桌购物车' })).toBeVisible()
     await expect(page.getByText('共 1 份菜品')).toBeVisible()
 
-    await page.evaluate(() => window.scrollTo(0, 420))
+    // 全局启用了 scroll-behavior: smooth，必须用 instant 立即定位，避免读到动画起始值 0。
+    await page.evaluate(() => window.scrollTo({ top: 420, behavior: 'instant' }))
     const scrollBefore = await page.evaluate(() => window.scrollY)
     expect(scrollBefore).toBeGreaterThan(0)
 
@@ -575,6 +576,43 @@ test.describe('主题体验增强 - E2E 验收', () => {
       await expect(page.getByText('桌边服务')).not.toBeVisible()
       await expect(page.getByRole('heading', { name: '鎏金番茄鸳鸯锅' })).toBeVisible()
       await expect(page.getByRole('heading', { name: '本桌购物车' })).toBeVisible()
+    })
+
+    test('TC-110.1: 主题单选组支持方向键、Home/End 与 roving tabindex', async ({ page }) => {
+      await page.emulateMedia({ colorScheme: 'light' })
+      await page.goto('/#/menu')
+      const toggle = page.getByTestId('theme-toggle')
+
+      await toggle.click()
+      await expect(page.getByRole('dialog')).toBeVisible()
+      const systemOption = page.getByTestId('theme-option-system')
+      await expect(systemOption).toHaveAttribute('tabindex', '0')
+      await expect(page.getByTestId('theme-option-light')).toHaveAttribute('tabindex', '-1')
+      await expect(page.getByTestId('theme-option-dark')).toHaveAttribute('tabindex', '-1')
+
+      await systemOption.focus()
+      await expect(systemOption).toBeFocused()
+      await page.keyboard.press('ArrowDown')
+      await expect(page.getByRole('dialog')).toBeHidden()
+      await expectTheme(page, 'light', 'light')
+      await expect(toggle).toHaveAttribute('aria-label', '外观模式：白天，打开设置')
+
+      await toggle.click()
+      const lightOption = page.getByTestId('theme-option-light')
+      await expect(lightOption).toHaveAttribute('tabindex', '0')
+      await lightOption.focus()
+      await page.keyboard.press('End')
+      await expect(page.getByRole('dialog')).toBeHidden()
+      await expectTheme(page, 'dark', 'dark')
+
+      await toggle.click()
+      const darkOption = page.getByTestId('theme-option-dark')
+      await expect(darkOption).toHaveAttribute('tabindex', '0')
+      await darkOption.focus()
+      await page.keyboard.press('ArrowDown')
+      await expect(page.getByRole('dialog')).toBeHidden()
+      await expectTheme(page, 'light', 'system')
+      await expect(toggle).toHaveAttribute('aria-label', '外观模式：跟随系统，打开设置')
     })
   })
 

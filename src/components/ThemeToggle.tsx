@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState, type KeyboardEvent } from 'react'
 import { Check, Monitor, Moon, Sun } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
@@ -22,7 +22,40 @@ export function ThemeToggle() {
   const { t } = useTranslation()
   const { preference, resolved, system, setPreference } = useThemeMode()
   const [open, setOpen] = useState(false)
+  const optionRefs = useRef<Array<HTMLButtonElement | null>>([])
   const Icon = PREFERENCE_ICON[preference]
+
+  const selectPreference = (option: ThemePreference) => {
+    setPreference(option)
+    setOpen(false)
+  }
+
+  /** 单选组键盘行为：方向键循环移动并选中，Home/End 跳到首尾（WAI-ARIA radio group）。 */
+  const handleGroupKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    const currentIndex = PREFERENCE_OPTIONS.indexOf(preference)
+    let nextIndex: number
+    switch (event.key) {
+      case 'ArrowRight':
+      case 'ArrowDown':
+        nextIndex = (currentIndex + 1) % PREFERENCE_OPTIONS.length
+        break
+      case 'ArrowLeft':
+      case 'ArrowUp':
+        nextIndex = (currentIndex - 1 + PREFERENCE_OPTIONS.length) % PREFERENCE_OPTIONS.length
+        break
+      case 'Home':
+        nextIndex = 0
+        break
+      case 'End':
+        nextIndex = PREFERENCE_OPTIONS.length - 1
+        break
+      default:
+        return
+    }
+    event.preventDefault()
+    optionRefs.current[nextIndex]?.focus()
+    selectPreference(PREFERENCE_OPTIONS[nextIndex]!)
+  }
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -38,21 +71,27 @@ export function ThemeToggle() {
       </DialogTrigger>
       <DialogContent title={t('common.theme_title')}>
         <p className="mt-2 text-sm leading-6 text-charcoal-500">{t('common.theme_desc')}</p>
-        <div className="mt-4 space-y-2" role="radiogroup" aria-label={t('common.theme_title')}>
-          {PREFERENCE_OPTIONS.map((option) => {
+        <div
+          className="mt-4 space-y-2"
+          role="radiogroup"
+          aria-label={t('common.theme_title')}
+          onKeyDown={handleGroupKeyDown}
+        >
+          {PREFERENCE_OPTIONS.map((option, index) => {
             const OptionIcon = PREFERENCE_ICON[option]
             const active = preference === option
             return (
               <button
                 key={option}
+                ref={(element) => {
+                  optionRefs.current[index] = element
+                }}
                 type="button"
                 role="radio"
                 aria-checked={active}
+                tabIndex={active ? 0 : -1}
                 data-testid={`theme-option-${option}`}
-                onClick={() => {
-                  setPreference(option)
-                  setOpen(false)
-                }}
+                onClick={() => selectPreference(option)}
                 className={cn(
                   'flex w-full items-center gap-3 rounded-2xl border p-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-chili-500',
                   active ? 'border-chili-500 bg-chili-50' : 'border-charcoal-900/10 bg-white hover:border-chili-500/30 hover:bg-chili-50',
