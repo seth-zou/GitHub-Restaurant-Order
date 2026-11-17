@@ -175,4 +175,115 @@ test.describe('火锅底料必选环节 - E2E 验收测试', () => {
     await expect(page.getByRole('heading', { name: '鎏金番茄鸳鸯锅' })).toBeVisible()
     await expect(page.getByRole('heading', { name: '牛油麻辣锅' })).toBeVisible()
   })
+
+  test('REQ-004.2: 未选底料时进入结账被阻断（REQ-004 / TC-006）', async ({ page }) => {
+    await goToMenuWithBaseDialog(page)
+    await confirmHotpotBase(page)
+    // 加菜并提交订单，进入订单详情
+    await page.getByRole('button', { name: '牛羊肉' }).click()
+    await page.locator('article').first().locator('button').last().click()
+    await page.getByRole('button', { name: '加入本桌购物车' }).click()
+    await page.getByRole('button', { name: '确认并提交订单' }).click()
+    await expect(page).toHaveURL(/#\/order$/)
+    // 在订单详情取消底料
+    await page.getByTestId('hotpot-base-summary').first().getByRole('button', { name: '更换' }).click()
+    await page.getByRole('button', { name: '取消底料' }).click()
+    await expect(page.getByTestId('hotpot-base-summary').first()).toContainText('未选择底料')
+    // 尝试去结账：应被阻断，停留在订单页
+    await page.getByRole('button', { name: '去结账' }).click()
+    await expect(page).toHaveURL(/#\/order$/)
+    await expect(page.getByTestId('hotpot-base-summary').first()).toContainText('请先选择火锅底料')
+  })
+
+  test('REQ-006.4: 编辑弹窗「暂不修改」保留原选择（TC-010）', async ({ page }) => {
+    await goToMenuWithBaseDialog(page)
+    await confirmHotpotBase(page)
+    // 打开编辑弹窗
+    await page.getByTestId('hotpot-base-summary').first().getByRole('button', { name: '更换' }).click()
+    const editDialog = page.getByRole('dialog').filter({ hasText: '先选一锅底料' })
+    await expect(editDialog).toBeVisible()
+    // 在草稿中修改选择（添加第二种底料），但不保存
+    await editDialog.getByRole('button', { name: '选择 牛油麻辣锅' }).click()
+    await expect(editDialog.getByText('已选 2 种底料')).toBeVisible()
+    // 关闭弹窗（点击遮罩或 Esc）——编辑模式下允许关闭，等同于"暂不修改"
+    await page.keyboard.press('Escape')
+    await expect(editDialog).toHaveCount(0)
+    // 底料汇总仍展示原选择，未被草稿修改影响
+    await expect(page.getByTestId('hotpot-base-summary').first()).toContainText('鎏金番茄鸳鸯锅')
+    await expect(page.getByTestId('hotpot-base-summary').first()).not.toContainText('牛油麻辣锅')
+  })
+
+  test('REQ-007.4: 全部底料售罄时降级不阻塞提交（TC-012）', async ({ page }) => {
+    await goToMenuWithBaseDialog(page)
+    await confirmHotpotBase(page)
+    // 加菜
+    await page.getByRole('button', { name: '牛羊肉' }).click()
+    await page.locator('article').first().locator('button').last().click()
+    await page.getByRole('button', { name: '加入本桌购物车' }).click()
+    // 通过演示控制台将两种底料全部设为售罄
+    await page.getByRole('button', { name: '演示控制台' }).click()
+    const consoleDialog = page.getByRole('dialog').filter({ has: page.getByRole('heading', { name: '演示控制台' }) })
+    await expect(consoleDialog).toBeVisible()
+    await consoleDialog.getByRole('button', { name: '鎏金番茄鸳鸯锅' }).click()
+    await consoleDialog.getByRole('button', { name: '牛油麻辣锅' }).click()
+    await consoleDialog.getByRole('button', { name: '完成设置' }).click()
+    // 已选底料被售罄联动清空，但全部售罄为降级场景——提交不应被底料阻塞
+    await expect(page.getByTestId('hotpot-base-summary').first()).toContainText('请先选择火锅底料')
+    // 再次进入点餐页验证弹窗降级提示（刷新模拟重新进入）
+    await page.goto('/#/menu')
+    const dialog = page.getByRole('dialog').filter({ hasText: '今日底料已暂售' })
+    await expect(dialog).toBeVisible()
+    await expect(dialog.getByText('今日底料已暂售')).toBeVisible()
+    // 全部售罄时不阻塞提交：加菜后提交订单应成功
+    await page.getByRole('button', { name: '牛羊肉' }).click()
+    await page.locator('article').first().locator('button').last().click()
+    await page.getByRole('button', { name: '加入本桌购物车' }).click()
+    await page.getByRole('button', { name: '确认并提交订单' }).click()
+    await expect(page).toHaveURL(/#\/order$/)
+  })
+
+  test('REQ-010.3: 加菜再次提交不重复计费底料（TC-017）', async ({ page }) => {
+    await goToMenuWithBaseDialog(page)
+    await confirmHotpotBase(page, '牛油麻辣锅')
+    // 第一次提交含底料的订单
+    await page.getByRole('button', { name: '牛羊肉' }).click()
+    await page.locator('article').first().locator('button').last().click()
+    await page.getByRole('button', { name: '加入本桌购物车' }).click()
+    await page.getByRole('button', { name: '确认并提交订单' }).click()
+    await expect(page).toHaveURL(/#\/order$/)
+    // 继续加菜并再次提交
+    await page.getByRole('button', { name: '继续加菜' }).click()
+    await expect(page).toHaveURL(/#\/menu$/)
+    await page.getByRole('button', { name: '牛羊肉' }).click()
+    await page.locator('article').first().locator('button').last().click()
+    await page.getByRole('button', { name: '加入本桌购物车' }).click()
+    await page.getByRole('button', { name: '确认并提交订单' }).click()
+    await expect(page).toHaveURL(/#\/order$/)
+    // 进入结账，验证底料只计一次（¥59）
+    await page.getByRole('button', { name: '去结账' }).click()
+    await expect(page).toHaveURL(/#\/checkout$/)
+    await expect(page.getByText('牛油麻辣锅').first()).toBeVisible()
+    // 底料 ¥59 + 两份琥珀嫩牛肉 ¥42×2 = ¥143，满100减30 → 应付 ¥113
+    await expect(page.getByText('¥113.00', { exact: true }).first()).toBeVisible({ timeout: 15000 })
+  })
+
+  test('REQ-009.2/009.3: 底料选项键盘可操作与 aria 断言（TC-018）', async ({ page }) => {
+    const dialog = await goToMenuWithBaseDialog(page)
+    // 底料选项按钮具备 aria-pressed 选中态（默认 false）
+    const tomato = dialog.getByRole('button', { name: '选择 鎏金番茄鸳鸯锅' })
+    await expect(tomato).toHaveAttribute('aria-pressed', 'false')
+    // 键盘 Tab 聚焦到第一个底料选项并 Space 切换选中
+    await tomato.focus()
+    await expect(tomato).toBeFocused()
+    await page.keyboard.press('Space')
+    await expect(tomato).toHaveAttribute('aria-pressed', 'true')
+    await expect(dialog.getByText('已选 1 种底料')).toBeVisible()
+    // 空选点击确认时提示为 role="alert"
+    await tomato.focus()
+    await page.keyboard.press('Space')
+    await expect(tomato).toHaveAttribute('aria-pressed', 'false')
+    await dialog.getByRole('button', { name: '确认底料，开始点餐' }).click()
+    const alertMsg = dialog.getByRole('alert')
+    await expect(alertMsg).toContainText('请至少选择 1 种火锅底料后再继续')
+  })
 })
