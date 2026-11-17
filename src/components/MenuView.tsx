@@ -4,16 +4,19 @@ import { AlertTriangle, Check, Flame, Plus, Search, Sparkles, Users } from 'luci
 import { categories, products } from '@/data/menu'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
-import { money, uid } from '@/lib/utils'
-import type { CartItem, Product } from '@/types'
+import { formatMoney } from '@/lib/currency'
+import { uid } from '@/lib/utils'
+import type { CartItem, CurrencyCode, Product } from '@/types'
 
 interface MenuViewProps {
   diners: string[]
   soldOut: string[]
+  /** 整桌币种：菜单价格、规格弹窗与加入购物车的条目均使用该币种。 */
+  currency: CurrencyCode
   onAdd: (item: CartItem) => void
 }
 
-export function MenuView({ diners, soldOut, onAdd }: MenuViewProps) {
+export function MenuView({ diners, soldOut, currency, onAdd }: MenuViewProps) {
   const { t } = useTranslation()
   const [category, setCategory] = useState('menu.cat.recommend')
   const [search, setSearch] = useState('')
@@ -64,7 +67,9 @@ export function MenuView({ diners, soldOut, onAdd }: MenuViewProps) {
       specParts.push(t('cart.confirmed_risk'))
     }
     const spec = specParts.join(' · ') || t('menu.standard')
-    onAdd({ uid: uid(), productId: selected.id, name: t(selected.name), price: Math.round(selected.price * portionFactor), quantity: 1, image: selected.image, spec, orderedBy: diner })
+    // 价格按币种金额计算：半份按 0.58 折算后保留 2 位小数，避免明细行出现 3 位小数
+    const price = Math.round(selected.price * portionFactor * 100) / 100
+    onAdd({ uid: uid(), productId: selected.id, name: t(selected.name), price, currency, quantity: 1, image: selected.image, spec, orderedBy: diner })
     setSelected(null)
   }
 
@@ -97,7 +102,7 @@ export function MenuView({ diners, soldOut, onAdd }: MenuViewProps) {
                 {unavailable && <span className="absolute inset-0 flex items-center justify-center bg-white/55 text-lg font-extrabold text-charcoal-900 backdrop-blur-sm">{t('menu.sold_out')}</span>}
                 {product.orderedCount && <span className="absolute bottom-3 left-3 flex items-center gap-1 rounded-full bg-white/90 px-2 py-1 text-xs font-bold text-chili-600"><Check size={13} />{t('menu.ordered_table', { count: product.orderedCount })}</span>}
               </div>
-              <div className="p-4"><div className="flex items-start justify-between gap-3"><div><h3 className="font-extrabold text-charcoal-900">{t(product.name)}</h3><p className="mt-1 line-clamp-1 text-xs text-charcoal-500">{t(product.description)}</p></div><Button size="icon" disabled={unavailable} onClick={() => openSpec(product)} className="h-10 w-10 shrink-0 rounded-full"><Plus size={18} /></Button></div><p className="mt-4 text-xl font-extrabold text-chili-500">{money(product.price)} <small className="text-xs font-medium text-charcoal-500">{t('menu.from')}</small></p></div>
+              <div className="p-4"><div className="flex items-start justify-between gap-3"><div><h3 className="font-extrabold text-charcoal-900">{t(product.name)}</h3><p className="mt-1 line-clamp-1 text-xs text-charcoal-500">{t(product.description)}</p></div><Button size="icon" disabled={unavailable} onClick={() => openSpec(product)} className="h-10 w-10 shrink-0 rounded-full"><Plus size={18} /></Button></div><p className="mt-4 text-xl font-extrabold text-chili-500">{formatMoney(product.price, currency)} <small className="text-xs font-medium text-charcoal-500">{t('menu.from')}</small></p></div>
             </article>
           )
         })}
@@ -106,7 +111,7 @@ export function MenuView({ diners, soldOut, onAdd }: MenuViewProps) {
       <Dialog open={!!selected} onOpenChange={(open) => { if (!open) { setSelected(null); setShowRiskWarning(false) } }}>
         <DialogContent title={selected ? t(selected.name) : ''}>
           {selected && <>
-            <div className="mt-4 flex gap-4 rounded-2xl bg-white p-3"><img src={selected.image} alt={t(selected.name)} className="h-24 w-24 rounded-xl object-cover" /><div><p className="text-sm leading-6 text-charcoal-500">{t(selected.description)}</p><p className="mt-2 text-xl font-extrabold text-chili-500">{money(selected.price)} <small className="text-xs font-medium text-charcoal-500">{t('menu.from')}</small></p></div></div>
+            <div className="mt-4 flex gap-4 rounded-2xl bg-white p-3"><img src={selected.image} alt={t(selected.name)} className="h-24 w-24 rounded-xl object-cover" /><div><p className="text-sm leading-6 text-charcoal-500">{t(selected.description)}</p><p className="mt-2 text-xl font-extrabold text-chili-500">{formatMoney(selected.price, currency)} <small className="text-xs font-medium text-charcoal-500">{t('menu.from')}</small></p></div></div>
             {selected.options?.portion && <OptionRow label={t('menu.select_portion')} options={selected.options.portion} value={portion} onChange={setPortion} t={t} />}
             {selected.options?.flavor && <OptionRow label={t('menu.select_flavor')} options={selected.options.flavor} value={flavor} onChange={setFlavor} t={t} />}
             {selected.options?.spicy && <OptionRow label={t('menu.select_spicy')} icon={<Flame size={15} className="text-chili-500" />} options={selected.options.spicy} value={spicy} onChange={handleSpicyChange} t={t} />}

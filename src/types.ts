@@ -1,5 +1,8 @@
 export type OrderStage = 'submitted' | 'accepted' | 'cooking' | 'served'
 export type ViewName = 'home' | 'welcome' | 'menu' | 'order' | 'checkout'
+/** 整桌唯一币种，由门店/桌台决定，顾客不可切换。 */
+export type { CurrencyCode } from '@/lib/currency'
+import type { CurrencyCode } from '@/lib/currency'
 
 export interface Product {
   id: string
@@ -22,6 +25,8 @@ export interface CartItem {
   productId: string
   name: string
   price: number
+  /** 条目币种：加入购物车时锁定为桌台币种，避免混币加算。 */
+  currency: CurrencyCode
   quantity: number
   image: string
   spec: string
@@ -43,6 +48,8 @@ export interface ServiceRequest {
 export interface AppState {
   view: ViewName
   table: string | null
+  /** 当前桌台所属门店的定价币种，整桌统一。 */
+  currency: CurrencyCode
   diners: string[]
   cart: CartItem[]
   orderItems: OrderItem[]

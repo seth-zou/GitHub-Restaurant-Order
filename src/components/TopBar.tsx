@@ -1,15 +1,18 @@
-import { Accessibility, Crown, Languages, LayoutDashboard, MapPin, PhoneCall, ReceiptText, Search, UserRound } from 'lucide-react'
+import { Accessibility, Coins, Crown, Languages, LayoutDashboard, MapPin, PhoneCall, ReceiptText, Search, UserRound } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog'
-import { tableAreas } from '@/data/menu'
-import type { ViewName } from '@/types'
+import { getStoreByTable, tableAreas } from '@/data/menu'
+import { CURRENCIES, DISCOUNT_AMOUNT, formatMoney } from '@/lib/currency'
+import type { CurrencyCode, ViewName } from '@/types'
 
 interface TopBarProps {
   table: string
   view: ViewName
   serviceCount: number
+  /** 整桌币种：随桌台展示，作为“顾客不可改”的可见说明。 */
+  currency: CurrencyCode
   language: string
   elderly: boolean
   onToggleLanguage: () => void
@@ -19,10 +22,11 @@ interface TopBarProps {
   onConsole: () => void
 }
 
-export function TopBar({ table, view, serviceCount, language, elderly, onToggleLanguage, onToggleElderly, onView, onService, onConsole }: TopBarProps) {
+export function TopBar({ table, view, serviceCount, currency, language, elderly, onToggleLanguage, onToggleElderly, onView, onService, onConsole }: TopBarProps) {
   const { t } = useTranslation()
   const areaKey = tableAreas[table]
   const tableLabel = areaKey ? `${table} · ${t(areaKey)}` : table
+  const store = getStoreByTable(table)
 
   return (
     <>
@@ -36,6 +40,7 @@ export function TopBar({ table, view, serviceCount, language, elderly, onToggleL
             <span className="hidden sm:block"><strong className="block leading-4 text-charcoal-900">{t('common.brand_name')}</strong><small className="text-charcoal-500">{t('common.subtitle')}</small></span>
           </button>
           <span className="ml-1 flex items-center gap-1 rounded-full bg-rice-200 px-3 py-2 text-xs font-bold text-charcoal-700"><MapPin size={13} className="text-chili-500" />{tableLabel}</span>
+          <span className="hidden items-center gap-1 rounded-full bg-rice-200 px-3 py-2 text-xs font-bold text-charcoal-700 sm:flex" title={t('currency.hint_store', { store: t(store.nameKey) })}><Coins size={13} className="text-amber-500" />{t('currency.label')} {t(`currency.${currency}`)}<small className="font-medium text-charcoal-500">· {CURRENCIES[currency].symbol}</small></span>
           <nav className="ml-auto hidden items-center gap-1 md:flex">
             <Button variant={view === 'menu' ? 'secondary' : 'ghost'} size="sm" onClick={() => onView('menu')}><Search size={16} />{t('common.nav_menu')}</Button>
             <Button variant={view === 'order' ? 'secondary' : 'ghost'} size="sm" onClick={() => onView('order')}><ReceiptText size={16} />{t('common.nav_order')}</Button>
@@ -52,7 +57,7 @@ export function TopBar({ table, view, serviceCount, language, elderly, onToggleL
               </div>
               <div className="mt-4 grid grid-cols-2 gap-3">
                 <div className="rounded-2xl bg-white p-4 shadow-sm"><p className="text-xs text-charcoal-500">{t('common.queue')}</p><p className="mt-2 text-2xl font-extrabold text-charcoal-900">A018</p><p className="text-xs text-chili-500">{t('common.queue_ahead')}</p></div>
-                <div className="rounded-2xl bg-white p-4 shadow-sm"><p className="text-xs text-charcoal-500">{t('common.benefits')}</p><p className="mt-2 text-2xl font-extrabold text-charcoal-900">4 <small className="text-sm">{t('common.tickets')}</small></p><p className="text-xs text-amber-500">{t('common.coupon')}</p></div>
+                <div className="rounded-2xl bg-white p-4 shadow-sm"><p className="text-xs text-charcoal-500">{t('common.benefits')}</p><p className="mt-2 text-2xl font-extrabold text-charcoal-900">4 <small className="text-sm">{t('common.tickets')}</small></p><p className="text-xs text-amber-500">{t('common.coupon', { amount: formatMoney(DISCOUNT_AMOUNT, currency) })}</p></div>
               </div>
             </DialogContent>
           </Dialog>

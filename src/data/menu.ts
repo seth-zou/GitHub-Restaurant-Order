@@ -2,6 +2,7 @@ import hotpot from '@/assets/hotpot.jpg'
 import vegetables from '@/assets/vegetables.jpg'
 import beef from '@/assets/beef.jpg'
 import broth from '@/assets/broth.jpg'
+import type { CurrencyCode } from '@/lib/currency'
 import type { Product } from '@/types'
 
 export const categories = ['menu.cat.recommend', 'menu.cat.broth', 'menu.cat.meat', 'menu.cat.seafood', 'menu.cat.veggie', 'menu.cat.staple']
@@ -12,6 +13,40 @@ export const tableAreas: Record<string, string> = {
   'C06': 'bind.area.room',
   'D03': 'bind.area.window',
 }
+
+/**
+ * 演示门店：桌台前缀 → 门店。每张桌台归属一家门店，整桌按该门店的定价币种展示与加算。
+ * 币种是门店属性，顾客不可切换；演示数据为产品规则 DEFAULT-2 的示例，真实门店映射由后续数据源提供。
+ */
+export interface Store {
+  id: string
+  nameKey: string
+  currency: CurrencyCode
+}
+
+export const stores: Store[] = [
+  { id: 'xingheli', nameKey: 'store.xingheli', currency: 'CNY' },
+  { id: 'harbor', nameKey: 'store.harbor', currency: 'USD' },
+  { id: 'mongkok', nameKey: 'store.mongkok', currency: 'HKD' },
+  { id: 'shinjuku', nameKey: 'store.shinjuku', currency: 'JPY' },
+]
+
+export const tableStore: Record<string, string> = {
+  A08: 'xingheli',
+  B12: 'harbor',
+  C06: 'mongkok',
+  D03: 'shinjuku',
+}
+
+/** 桌台对应的门店；未知桌台回落到默认门店（人民币）。 */
+export const getStoreByTable = (table: string | null): Store =>
+  stores.find((store) => store.id === tableStore[table ?? '']) ?? stores[0]
+
+export const getCurrencyByTable = (table: string | null): CurrencyCode => getStoreByTable(table).currency
+
+/** 由币种反查演示门店（币种预览/深链接使用）。 */
+export const getStoreByCurrency = (currency: string | null | undefined): Store | undefined =>
+  stores.find((store) => store.currency === currency?.toUpperCase())
 
 export const products: Product[] = [
   {
