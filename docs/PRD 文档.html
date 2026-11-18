@@ -1,0 +1,489 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light" data-pref="system">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>PRD 文档 · 主题体验增强（白天 / 夜间 / 跟随系统）</title>
+<style>
+  :root {
+    --bg: #fbf5ea; --panel: #fffdf8; --card: #ffffff; --fg: #211f1c; --fg2: #34312d; --muted: #5f5b55;
+    --accent: #e13b2b; --accent-strong: #a9231a; --accent-soft: #fff1ef; --warn: #f5b83f;
+    --border: rgba(33, 31, 28, .1); --shadow: 0 18px 55px rgba(61, 44, 28, .12);
+  }
+  html[data-theme="dark"] {
+    --bg: #12100d; --panel: #191612; --card: #1d1915; --fg: #f7f1e6; --fg2: #ded4c4; --muted: #b6aca0;
+    --accent: #ff8170; --accent-strong: #ff958a; --accent-soft: #31221f; --warn: #f5b83f;
+    --border: rgba(247, 241, 230, .12); --shadow: 0 18px 55px rgba(0, 0, 0, .4);
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0; background: var(--bg); color: var(--fg);
+    font: 15px/1.75 "Inter", "Noto Sans SC", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    transition: background-color .25s ease, color .25s ease;
+  }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  code { background: var(--accent-soft); color: var(--accent-strong); padding: .1em .4em; border-radius: 6px; font-size: .9em; }
+  .layout { display: grid; grid-template-columns: 248px minmax(0, 1fr); gap: 32px; max-width: 1240px; margin: 0 auto; padding: 32px 24px 80px; }
+  aside { position: sticky; top: 24px; align-self: start; max-height: calc(100vh - 48px); overflow: auto; }
+  .brand { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; }
+  .brand-mark { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 12px; background: var(--accent); color: #fff; font-weight: 900; }
+  .brand strong { display: block; font-size: 15px; }
+  .brand small { color: var(--muted); font-size: 12px; }
+  nav ol { list-style: none; margin: 0; padding: 0; border-left: 1px solid var(--border); }
+  nav li a { display: block; padding: 7px 12px; color: var(--muted); font-size: 13px; border-left: 2px solid transparent; margin-left: -1px; }
+  nav li a:hover { color: var(--fg); text-decoration: none; border-left-color: var(--accent); }
+  main { min-width: 0; }
+  .cover { background: var(--card); border: 1px solid var(--border); border-radius: 24px; padding: 32px; box-shadow: var(--shadow); }
+  .eyebrow { color: var(--accent); font-size: 12px; font-weight: 800; letter-spacing: .16em; text-transform: uppercase; }
+  h1 { margin: 8px 0 12px; font-size: clamp(26px, 3.4vw, 40px); line-height: 1.25; letter-spacing: -.02em; }
+  .lead { margin: 0; color: var(--muted); font-size: 16px; max-width: 62ch; }
+  .badges { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 20px; }
+  .badge { border: 1px solid var(--border); background: var(--bg); color: var(--fg2); border-radius: 999px; padding: 5px 12px; font-size: 12px; font-weight: 700; }
+  .badge.accent { background: var(--accent-soft); border-color: transparent; color: var(--accent-strong); }
+  .badge.warn { background: color-mix(in srgb, var(--warn) 22%, transparent); border-color: transparent; color: var(--fg2); }
+  section { margin-top: 32px; scroll-margin-top: 24px; }
+  h2 { font-size: 22px; margin: 0 0 14px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
+  h3 { font-size: 16px; margin: 26px 0 8px; }
+  h4 { font-size: 14px; margin: 18px 0 6px; color: var(--fg2); }
+  p { margin: 8px 0; }
+  ul, ol { padding-left: 22px; margin: 8px 0; }
+  li { margin: 4px 0; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 20px; padding: 20px 22px; }
+  .grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+  .req { background: var(--card); border: 1px solid var(--border); border-radius: 20px; padding: 18px 20px; margin: 14px 0; }
+  .req-head { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+  .req-id { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; font-weight: 800; color: var(--accent-strong); background: var(--accent-soft); padding: 3px 8px; border-radius: 8px; }
+  .req h3 { margin: 0; font-size: 16px; }
+  .p0, .p1 { font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 999px; }
+  .p0 { background: var(--accent); color: #fff; }
+  .p1 { background: color-mix(in srgb, var(--warn) 30%, transparent); color: var(--fg2); }
+  .label { font-size: 12px; font-weight: 800; color: var(--muted); letter-spacing: .06em; text-transform: uppercase; margin-top: 12px; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 13.5px; background: var(--card); border-radius: 14px; overflow: hidden; }
+  th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { background: var(--panel); color: var(--fg2); font-size: 12px; letter-spacing: .04em; }
+  tr:last-child td { border-bottom: 0; }
+  pre { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 14px 16px; overflow: auto; font-size: 12.5px; line-height: 1.6; }
+  pre code { background: none; color: var(--fg2); padding: 0; }
+  .note { border-left: 3px solid var(--accent); background: var(--accent-soft); padding: 12px 16px; border-radius: 0 14px 14px 0; color: var(--fg2); font-size: 14px; }
+  .ok { color: #1c8a5a; font-weight: 800; }
+  html[data-theme="dark"] .ok { color: #58d39a; }
+  .toolbar { position: fixed; right: 20px; top: 20px; z-index: 20; }
+  .theme-btn { display: inline-flex; align-items: center; gap: 8px; height: 44px; padding: 0 14px; border-radius: 12px; border: 1px solid var(--border); background: var(--card); color: var(--fg); font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; box-shadow: var(--shadow); }
+  .theme-btn:hover { border-color: var(--accent); }
+  .theme-btn:focus-visible { outline: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 35%, transparent); }
+  footer { margin-top: 40px; color: var(--muted); font-size: 12px; }
+  @media (max-width: 900px) {
+    .layout { grid-template-columns: 1fr; padding: 20px 16px 60px; }
+    aside { position: static; max-height: none; }
+    nav ol { display: flex; flex-wrap: wrap; gap: 4px; border-left: 0; }
+    nav li a { border: 1px solid var(--border); border-radius: 999px; padding: 4px 10px; }
+    .cover { padding: 24px; }
+    .toolbar { position: sticky; top: 0; display: flex; justify-content: flex-end; padding: 10px 0; }
+  }
+  @media print {
+    .toolbar, aside { display: none; }
+    .layout { display: block; padding: 0; }
+    body { background: #fff; color: #000; }
+    .card, .req, table, pre { break-inside: avoid; box-shadow: none; }
+  }
+</style>
+</head>
+<body>
+<div class="toolbar">
+  <button class="theme-btn" id="themeBtn" type="button" aria-label="切换文档主题">
+    <span id="themeIcon" aria-hidden="true">🖥</span><span id="themeLabel">跟随系统</span>
+  </button>
+</div>
+
+<div class="layout">
+  <aside>
+    <div class="brand">
+      <span class="brand-mark">沸</span>
+      <div><strong>PRD 文档</strong><small>主题体验增强 · v2</small></div>
+    </div>
+    <nav aria-label="文档目录">
+      <ol>
+        <li><a href="#summary">Review Summary</a></li>
+        <li><a href="#context">1. Context</a></li>
+        <li><a href="#goals">2. Goals / Non-Goals</a></li>
+        <li><a href="#req">3. 功能需求</a></li>
+        <li><a href="#ux">4. UX Design</a></li>
+        <li><a href="#data">5. Data &amp; Storage</a></li>
+        <li><a href="#nfr">6. NFR / DFX</a></li>
+        <li><a href="#tests">7. Test Cases</a></li>
+        <li><a href="#questions">8. Open Questions</a></li>
+        <li><a href="#trace">9. Traceability</a></li>
+        <li><a href="#label">10. 需求打标</a></li>
+      </ol>
+    </nav>
+  </aside>
+
+  <main>
+    <header class="cover">
+      <div class="eyebrow">Product Requirement Document</div>
+      <h1>主题体验增强<br />白天 / 夜间 / 跟随系统</h1>
+      <p class="lead">在已交付的白天/夜间双主题基础上，升级为三态主题体验：用户可长期选择「跟随系统」，界面随设备偏好实时变化，主题入口清晰表达当前偏好，并用自动化守卫保证全站暗色一致性。</p>
+      <div class="badges">
+        <span class="badge accent">优先级 P2</span>
+        <span class="badge">需求类型：UX / 可访问性 / 前端状态</span>
+        <span class="badge">打标结论：A 类</span>
+        <span class="badge warn">单仓闭环</span>
+        <span class="badge">基线 main @ 58ee88a</span>
+      </div>
+    </header>
+
+    <section id="summary">
+      <h2>Review Summary</h2>
+      <div class="card">
+        <ul>
+          <li><strong>本次需求</strong>：将双主题升级为「跟随系统 / 白天 / 夜间」三态主题体验，补齐实时联动、可读入口与暗色一致性守卫。</li>
+          <li><strong>变更面</strong>：Functional Requirements、UX Design、Data &amp; Storage、NFR / DFX、Test Cases、Traceability、需求打标。</li>
+          <li><strong>不涉及</strong>：API Design、Metrics、后端服务、数据迁移。</li>
+          <li><strong>判断依据</strong>：需求澄清文档 v2；仓库 AGENTS.md、useThemeMode、ThemeToggle、index.css、index.html、theme-mode E2E；空间任务 task-yezk3b78xsyl5rhlestd 已交付基线。</li>
+          <li><strong>差异判断</strong>：不涉及产品形态 / 站点 / 环境 / 版本差异；单仓 React SPA，hash 路由，GitHub Pages 子路径部署。</li>
+          <li><strong>Review 重点</strong>：三态优先级、系统联动边界、弹层可访问性、暗色对比度与根背景、旧值兼容、存储失败降级、业务回归。</li>
+        </ul>
+      </div>
+    </section>
+
+    <section id="context">
+      <h2>1. Context</h2>
+      <p>本 PRD 基于「需求澄清文档 v2」，目标仓库 <code>seth-zou/GitHub-Restaurant-Order</code>，基线 <code>main</code> @ <code>58ee88a</code>，工作分支 <code>feat/93300da1-55b2</code>。</p>
+      <ul>
+        <li>TD-1 关闭：继续使用 <code>darkMode: 'class'</code> + <code>src/index.css</code> 集中暗色映射，不引入 CSS 变量 / token 体系；用守卫命令约束新增颜色类。</li>
+        <li>TD-2 关闭：系统偏好监听兼容 <code>addEventListener</code> 与旧版 <code>addListener</code>，能力不可用回退白天。</li>
+        <li>原双主题能力已在基线交付；本文只描述本次增强的行为契约、验收与打标。</li>
+      </ul>
+    </section>
+
+    <section id="goals">
+      <h2>2. Goals / Non-Goals</h2>
+      <div class="grid">
+        <div class="card">
+          <h3>Goals</h3>
+          <ul>
+            <li>「跟随系统」成为可长期保持的用户状态，并实时联动。</li>
+            <li>入口与弹层清晰表达当前偏好与当前生效模式。</li>
+            <li>用自动化守卫防止暗色映射随迭代劣化。</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>Non-Goals</h3>
+          <ul>
+            <li>不做自定义主题色、品牌主题包、主题市场。</li>
+            <li>不做定时 / 日出日落切换、按页面独立主题。</li>
+            <li>不做账号级或跨设备同步、埋点。</li>
+            <li>不改造老人模式；不修复顶栏 375px 既有溢出。</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section id="req">
+      <h2>3. 功能需求</h2>
+
+      <article class="req">
+        <div class="req-head"><span class="req-id">REQ-101</span><h3>三态主题偏好与默认策略</h3><span class="p0">P0</span></div>
+        <p>偏好取值为 <code>system</code> / <code>light</code> / <code>dark</code>，默认 <code>system</code>。无有效保存值时按系统偏好解析；系统偏好不可用时解析为 <code>light</code>。用户显式选择优先。</p>
+        <div class="label">Acceptance (EARS)</div>
+        <ul>
+          <li>本地无有效值且系统 dark → 以 <code>system</code> 渲染夜间。</li>
+          <li>本地无有效值且系统 light / 未声明 / 能力不可用 → 渲染白天。</li>
+          <li>保存值为 <code>light</code> / <code>dark</code> → 优先该值并忽略系统偏好。</li>
+          <li>保存值为 <code>system</code> → 按系统偏好解析。</li>
+          <li>非法值 → 视为未保存并按默认策略解析。</li>
+          <li>用户显式选择 → 立即应用并写入本机存储。</li>
+        </ul>
+      </article>
+
+      <article class="req">
+        <div class="req-head"><span class="req-id">REQ-102</span><h3>跟随系统实时联动</h3><span class="p0">P0</span></div>
+        <p>偏好为 <code>system</code> 时监听 <code>prefers-color-scheme</code> 并即时更新；偏好为 <code>light</code> / <code>dark</code> 时不响应系统变化。</p>
+        <div class="label">Acceptance (EARS)</div>
+        <ul>
+          <li><code>system</code> 下系统变化 → 立即更新生效模式、<code>html.dark</code>、<code>data-theme-mode</code> 与 <code>theme-color</code>。</li>
+          <li>显式偏好下系统变化 → 保持当前生效模式。</li>
+          <li>切回 <code>system</code> → 立即按系统偏好渲染并继续监听。</li>
+          <li>监听能力不可用 → 保持白天且不抛错。</li>
+        </ul>
+      </article>
+
+      <article class="req">
+        <div class="req-head"><span class="req-id">REQ-103</span><h3>主题入口与外观设置弹层</h3><span class="p0">P0</span></div>
+        <p>主流程顶栏、首页、欢迎页提供 44px 主题入口；图标表示当前偏好，可访问名称说明当前偏好与打开设置。点击打开「外观模式」弹层，提供三个互斥选项、当前设备偏好与当前生效模式说明。</p>
+        <div class="label">Acceptance (EARS)</div>
+        <ul>
+          <li>五个视图（home / welcome / menu / order / checkout）入口可见、可聚焦、可触发。</li>
+          <li>弹层展示三个互斥选项并标记当前偏好。</li>
+          <li>选择后立即应用并关闭弹层。</li>
+          <li>「跟随系统」选项显示当前设备实际偏好。</li>
+          <li>Esc / 关闭 → 关闭弹层并将焦点返回入口。</li>
+          <li>中英文入口名称、选项与说明同步。</li>
+          <li>选中态由图标、勾选标记和文字共同表达。</li>
+          <li>切换不产生布局跳动或路由变化。</li>
+        </ul>
+      </article>
+
+      <article class="req">
+        <div class="req-head"><span class="req-id">REQ-104</span><h3>全站暗色一致性与可读性</h3><span class="p0">P0</span></div>
+        <p>夜间模式覆盖页面底色、卡片、弹层、Toast、底部导航、主 CTA、表单、状态徽章和图片遮罩。<code>html</code> 与 <code>body</code> 均使用暗色基线；文本与关键状态保持 WCAG AA；焦点可见；状态不以颜色为唯一载体。</p>
+        <div class="label">Acceptance (EARS)</div>
+        <ul>
+          <li><code>html</code>、<code>body</code>、页面容器均使用暗色背景，短页面与滚动越界不露浅色底。</li>
+          <li>正文、价格、订单状态、售罄与风险提示、按钮文案 ≥ 4.5:1。</li>
+          <li>键盘焦点环可辨识。</li>
+          <li>图片、遮罩、状态标识不遮挡关键信息，不以颜色作为唯一识别方式。</li>
+          <li>出现未映射浅色块、低对比文本或不可读控件视为不满足。</li>
+        </ul>
+      </article>
+
+      <article class="req">
+        <div class="req-head"><span class="req-id">REQ-105</span><h3>主题覆盖守卫与维护契约</h3><span class="p1">P1</span></div>
+        <p><code>npm run theme:check</code> 扫描 <code>src/**/*.{ts,tsx}</code> 中的自定义色板颜色类，校验存在 <code>.dark</code> 映射或属于「深色底安全清单」；遗漏时非零退出并输出类名与文件。</p>
+        <div class="label">Acceptance (EARS)</div>
+        <ul>
+          <li>全部颜色类均有映射或安全归类 → 退出码 0。</li>
+          <li>存在未映射且未归类的类 → 非零退出并列出类名与文件。</li>
+          <li>深色底安全类需在脚本清单显式登记并说明原因。</li>
+          <li>校验不引入运行时网络请求或第三方依赖。</li>
+        </ul>
+      </article>
+
+      <article class="req">
+        <div class="req-head"><span class="req-id">REQ-106</span><h3>降级、兼容与隐私</h3><span class="p1">P1</span></div>
+        <p>本机存储不可用时降级为当前页面会话内存态；系统偏好能力不可用时回退白天；历史 <code>light</code> / <code>dark</code> 值继续有效；偏好不上报、不同步。</p>
+        <div class="label">Acceptance (EARS)</div>
+        <ul>
+          <li><code>localStorage</code> 读取或写入不可用 → 会话内继续支持三态切换，无用户可见错误。</li>
+          <li>写入失败后继续切换 → 优先本次会话选择，而不是旧存储值。</li>
+          <li><code>matchMedia</code> 不可用 → 白天模式，手动切换可用。</li>
+          <li>不向网络或后端发送主题偏好，不新增 Cookie / 埋点。</li>
+          <li>React 挂载前完成主题判定，避免可见闪烁。</li>
+        </ul>
+      </article>
+
+      <article class="req">
+        <div class="req-head"><span class="req-id">REQ-107</span><h3>业务流程与路由不受影响</h3><span class="p0">P0</span></div>
+        <p>主题切换只改变视觉呈现，不改变路由、桌台、购物车、订单、服务请求与结账状态，不触发网络请求或数据重置。</p>
+        <div class="label">Acceptance (EARS)</div>
+        <ul>
+          <li>切换后 URL、桌台与购物车内容不变。</li>
+          <li>订单/结账流程切换不重置订单、支付方式或履约进度。</li>
+          <li>切换不产生控制台错误。</li>
+          <li>浅色与夜间分别完成主流程，业务结果一致。</li>
+        </ul>
+      </article>
+
+      <h3>关键场景（Gherkin 摘要）</h3>
+      <pre><code>Scenario: 跟随系统时自动切换
+  Given 用户偏好为 system 且系统为 light
+  When 系统切换为 dark
+  Then 界面立即切换为夜间模式
+  And 用户偏好仍为 system
+
+Scenario: 打开外观模式并切换
+  Given 用户处于点餐页且偏好为 system
+  When 用户打开主题入口并选择「夜间」
+  Then 界面立即渲染夜间模式
+  And 弹层关闭且焦点回到主题入口
+
+Scenario: 存储不可用
+  Given 浏览器禁止 localStorage
+  When 用户切换到夜间模式并继续点餐
+  Then 当前会话保持夜间模式
+  And 点餐与提交订单可继续完成</code></pre>
+    </section>
+
+    <section id="ux">
+      <h2>4. UX Design</h2>
+      <h3>入口位置</h3>
+      <table>
+        <thead><tr><th>位置</th><th>形态</th><th>交互</th><th>约束</th></tr></thead>
+        <tbody>
+          <tr><td>#/home、#/welcome</td><td>右上角浮动图标按钮</td><td>打开外观设置弹层</td><td>不遮挡桌台选择与进入点餐</td></tr>
+          <tr><td>#/menu、#/order、#/checkout</td><td>主流程顶栏图标按钮</td><td>打开外观设置弹层</td><td>与语言、老人模式、服务、演示控制台共存，44×44px</td></tr>
+          <tr><td>外观设置弹层</td><td>移动端贴底 / 桌面居中</td><td>选择后立即生效</td><td>关闭后焦点回到入口</td></tr>
+        </tbody>
+      </table>
+
+      <h3>弹层结构</h3>
+      <ol>
+        <li>标题：外观模式。</li>
+        <li>说明：选择界面亮度；“跟随系统”会随设备设置自动切换。</li>
+        <li>三个互斥选项：跟随系统（含「当前设备」说明）、白天、夜间。</li>
+        <li>选中态：辣红边框 + 浅辣红底 + 勾选图标 + 文字加粗。</li>
+        <li>底部状态：当前界面：白天 / 夜间。</li>
+      </ol>
+
+      <h3>状态矩阵</h3>
+      <table>
+        <thead><tr><th>用户偏好</th><th>系统偏好</th><th>生效模式</th><th>入口图标</th><th>弹层选中项</th></tr></thead>
+        <tbody>
+          <tr><td>system</td><td>dark</td><td>夜间</td><td>Monitor</td><td>跟随系统（当前设备：夜间）</td></tr>
+          <tr><td>system</td><td>light / 不可用</td><td>白天</td><td>Monitor</td><td>跟随系统（当前设备：白天）</td></tr>
+          <tr><td>light</td><td>任意</td><td>白天</td><td>Sun</td><td>白天</td></tr>
+          <tr><td>dark</td><td>任意</td><td>夜间</td><td>Moon</td><td>夜间</td></tr>
+        </tbody>
+      </table>
+
+      <h3>文案（zh / en）</h3>
+      <table>
+        <thead><tr><th>Key</th><th>中文</th><th>English</th></tr></thead>
+        <tbody>
+          <tr><td>common.theme_title</td><td>外观模式</td><td>Appearance</td></tr>
+          <tr><td>common.theme_system</td><td>跟随系统</td><td>Follow system</td></tr>
+          <tr><td>common.theme_light</td><td>白天</td><td>Light</td></tr>
+          <tr><td>common.theme_dark</td><td>夜间</td><td>Dark</td></tr>
+          <tr><td>common.theme_entry</td><td>外观模式：{{mode}}，打开设置</td><td>Appearance: {{mode}}. Open settings</td></tr>
+          <tr><td>common.theme_system_hint</td><td>当前设备：{{mode}}</td><td>Device currently: {{mode}}</td></tr>
+          <tr><td>common.theme_current</td><td>当前界面：{{mode}}</td><td>Current interface: {{mode}}</td></tr>
+        </tbody>
+      </table>
+      <p class="note">交互细节：切换遵循 250ms 颜色过渡，不触发布局变化；弹层支持关闭按钮、Esc、选择选项三种关闭方式；复用既有 Dialog 组件与 focus-visible 焦点环。</p>
+    </section>
+
+    <section id="data">
+      <h2>5. Data &amp; Storage</h2>
+      <table>
+        <thead><tr><th>对象</th><th>契约</th><th>校验 / 优先级</th><th>兼容性</th></tr></thead>
+        <tbody>
+          <tr><td>localStorage.theme-mode</td><td>system / light / dark</td><td>显式选择 &gt; 系统偏好 &gt; 白天；非法值按未保存</td><td>历史 light / dark 继续有效</td></tr>
+          <tr><td>html.dark</td><td>夜间模式唯一全局类</td><td>随生效模式同步</td><td>复用 Tailwind darkMode: 'class'</td></tr>
+          <tr><td>data-theme-mode</td><td>light / dark</td><td>实际生效模式</td><td>既有测试与排查入口</td></tr>
+          <tr><td>data-theme-preference</td><td>system / light / dark</td><td>用户偏好</td><td>本次新增</td></tr>
+          <tr><td>meta[name="theme-color"]</td><td>light #fbf5ea / dark #12100d</td><td>随生效模式同步</td><td>浏览器地址栏配色</td></tr>
+        </tbody>
+      </table>
+      <h3>迁移与回滚</h3>
+      <ul>
+        <li>不迁移历史数据；旧值直接可用。</li>
+        <li>回滚时遗留的 <code>theme-mode=system</code> 会被旧版本视为非法值，回退系统偏好或白天，不阻塞业务。</li>
+        <li>主题偏好仅存在于本设备浏览器，不构成服务端契约。</li>
+      </ul>
+    </section>
+
+    <section id="nfr">
+      <h2>6. NFR / DFX</h2>
+      <table>
+        <thead><tr><th>类别</th><th>要求</th><th>验收方法</th></tr></thead>
+        <tbody>
+          <tr><td>可访问性</td><td>正文与关键状态满足 WCAG AA（4.5:1）；焦点可见；触控目标 44×44px；选中态不只用颜色</td><td>E2E 对比度抽样 + 人工键盘检查</td></tr>
+          <tr><td>兼容性</td><td>现代主流浏览器；matchMedia 不可用回退白天；localStorage 不可用降级会话内存态；hash 路由与 Pages 子路径不受影响</td><td>Playwright 多场景 + 部署配置核对</td></tr>
+          <tr><td>性能</td><td>主题判定在首屏渲染前完成；切换仅触发颜色过渡；不新增网络请求</td><td>构建产物核对 + 人工观察</td></tr>
+          <tr><td>可维护性</td><td>单一暗色映射源 + npm run theme:check 守卫；不新增未登记颜色</td><td>守卫命令通过</td></tr>
+          <tr><td>安全与隐私</td><td>不采集、不上报、不同步主题偏好；不新增 Cookie / 埋点 / 第三方</td><td>代码检索</td></tr>
+          <tr><td>发布与回滚</td><td>随前端版本发布，无数据库迁移；回滚仅移除入口与状态逻辑</td><td>构建 + 回滚说明</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="tests">
+      <h2>7. Test Cases</h2>
+      <table>
+        <thead><tr><th>ID</th><th>覆盖 REQ</th><th>场景</th><th>预期</th></tr></thead>
+        <tbody>
+          <tr><td>TC-101</td><td>REQ-103</td><td>五个视图打开入口、三选项可见</td><td>入口可达、弹层出现</td></tr>
+          <tr><td>TC-102</td><td>REQ-103 / 107</td><td>切换后路由、桌台、购物车不变</td><td>URL 与业务状态保持</td></tr>
+          <tr><td>TC-103</td><td>REQ-101</td><td>无保存值 + 系统 dark / light / no-preference / 能力不可用</td><td>夜间 / 白天 / 白天 / 白天</td></tr>
+          <tr><td>TC-104</td><td>REQ-101</td><td>保存 light + 系统 dark；保存 system；非法值</td><td>白天 / 跟随系统 / 默认策略</td></tr>
+          <tr><td>TC-105</td><td>REQ-102</td><td>跟随系统时运行时切换；显式选择后切换系统</td><td>前者联动、后者不联动</td></tr>
+          <tr><td>TC-106</td><td>REQ-101 / 106</td><td>三态选择后刷新</td><td>偏好与生效模式保持</td></tr>
+          <tr><td>TC-107</td><td>REQ-106</td><td>localStorage 读取 / 写入失败</td><td>会话内可切换、无错误、旧值不覆盖会话选择</td></tr>
+          <tr><td>TC-108</td><td>REQ-104</td><td>夜间模式五个视图、卡片、分类、输入、产品卡</td><td>暗色背景与 AA 抽样通过</td></tr>
+          <tr><td>TC-109</td><td>REQ-104</td><td>夜间模式外观弹层、服务、演示控制台、购物车、底部导航</td><td>暗色语义一致</td></tr>
+          <tr><td>TC-110</td><td>REQ-103 / 104</td><td>键盘打开 / 关闭弹层、焦点回归</td><td>焦点可见、可操作</td></tr>
+          <tr><td>TC-111</td><td>REQ-103</td><td>英文入口与选项、老人模式叠加</td><td>文案同步、字号 20px、夜间保持</td></tr>
+          <tr><td>TC-112</td><td>REQ-107</td><td>浅色与夜间分别完成点餐 → 订单 → 结账 → 后退</td><td>业务结果一致、主题保持</td></tr>
+          <tr><td>TC-113</td><td>REQ-105</td><td>执行 npm run theme:check</td><td>通过；新增未映射类时失败</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="questions">
+      <h2>8. Open Questions</h2>
+      <table>
+        <thead><tr><th>ID</th><th>问题</th><th>影响</th><th>决议 / 建议</th></tr></thead>
+        <tbody>
+          <tr><td>OQ-101</td><td>是否演进为 CSS 变量 / 语义 token 体系？</td><td>长期维护成本；不影响本次用户可见行为</td><td>本次不演进；保持集中映射 + 守卫，后续另立技术需求</td></tr>
+          <tr><td>OQ-102</td><td>顶栏 375px 横向溢出是否为本次范围？</td><td>影响移动端入口完整可见</td><td>不在本次范围；建议另立布局适配需求</td></tr>
+          <tr><td>OQ-103</td><td>是否支持日出日落自动切换？</td><td>新增调度与地理依赖</td><td>本次不做；如需要另立需求</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="trace">
+      <h2>9. Traceability</h2>
+      <table>
+        <thead><tr><th>REQ</th><th>UX / 状态</th><th>NFR</th><th>测试</th></tr></thead>
+        <tbody>
+          <tr><td>REQ-101</td><td>状态矩阵；存储契约</td><td>兼容性</td><td>TC-103, TC-104, TC-106</td></tr>
+          <tr><td>REQ-102</td><td>跟随系统联动</td><td>兼容性、性能</td><td>TC-105</td></tr>
+          <tr><td>REQ-103</td><td>入口位置、弹层结构、文案</td><td>可访问性、性能</td><td>TC-101, TC-110, TC-111</td></tr>
+          <tr><td>REQ-104</td><td>暗色映射、根背景</td><td>可访问性</td><td>TC-108, TC-109</td></tr>
+          <tr><td>REQ-105</td><td>维护契约</td><td>可维护性</td><td>TC-113</td></tr>
+          <tr><td>REQ-106</td><td>降级策略</td><td>兼容性、安全隐私</td><td>TC-103, TC-107</td></tr>
+          <tr><td>REQ-107</td><td>业务不变</td><td>兼容性、性能</td><td>TC-102, TC-112</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="label">
+      <h2>10. 需求打标</h2>
+      <table>
+        <thead><tr><th>维度</th><th>结论</th><th>理由</th></tr></thead>
+        <tbody>
+          <tr><td>scope</td><td class="ok">PASS</td><td>集中在 1 个前端仓库，约 10 个文件，不超过 3 个架构层</td></tr>
+          <tr><td>interface</td><td class="ok">PASS</td><td>无新增外部 API；存储契约与 DOM 属性明确</td></tr>
+          <tr><td>pattern</td><td class="ok">PASS</td><td>复用既有 hook、Dialog、Button、i18n、Playwright 与集中映射</td></tr>
+          <tr><td>testability</td><td class="ok">PASS</td><td>可由 E2E 与守卫脚本客观判定</td></tr>
+          <tr><td>dependency</td><td class="ok">PASS</td><td>不新增依赖，仅使用仓库已有库</td></tr>
+          <tr><td>safety</td><td class="ok">PASS</td><td>仅视觉与本地偏好，不涉及支付、隐私、权限或不可逆变更</td></tr>
+          <tr><td>closure</td><td class="ok">PASS</td><td>单仓库闭环，无跨仓发版依赖</td></tr>
+        </tbody>
+      </table>
+      <p class="note"><strong>classification: A</strong> — 已有能力的延展与验证型改动，边界清晰、验证客观、风险低，适合 Agent 全自动推进后人工 Review。</p>
+    </section>
+
+    <footer>
+      PRD 文档 · 主题体验增强 v2 · 生成于 2026-11-16 · 目标仓库 seth-zou/GitHub-Restaurant-Order
+    </footer>
+  </main>
+</div>
+
+<script>
+  (function () {
+    var root = document.documentElement
+    var btn = document.getElementById('themeBtn')
+    var label = document.getElementById('themeLabel')
+    var icon = document.getElementById('themeIcon')
+    var KEY = 'prd-theme'
+    var LABELS = { system: ['跟随系统', '🖥'], light: ['白天', '☀️'], dark: ['夜间', '🌙'] }
+
+    function systemTheme() {
+      try { return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light' } catch (e) { return 'light' }
+    }
+    function apply(pref, persist) {
+      var resolved = pref === 'system' ? systemTheme() : pref
+      root.dataset.theme = resolved
+      root.dataset.pref = pref
+      label.textContent = LABELS[pref][0]
+      icon.textContent = LABELS[pref][1]
+      btn.setAttribute('aria-label', '当前：' + LABELS[pref][0] + '，点击切换文档主题')
+      if (persist) { try { localStorage.setItem(KEY, pref) } catch (e) {} }
+    }
+    var pref = 'system'
+    try { var stored = localStorage.getItem(KEY); if (stored === 'system' || stored === 'light' || stored === 'dark') pref = stored } catch (e) {}
+    apply(pref, false)
+    btn.addEventListener('click', function () {
+      pref = pref === 'system' ? 'light' : pref === 'light' ? 'dark' : 'system'
+      apply(pref, true)
+    })
+    try {
+      window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function () { if (root.dataset.pref === 'system') apply('system', false) })
+    } catch (e) {}
+  })()
+</script>
+</body>
+</html>

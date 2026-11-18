@@ -25,6 +25,7 @@
 - Radix UI
 - i18next
 - Playwright
+- Node 内置 test runner（单元测试）
 
 ## 环境要求
 
@@ -56,6 +57,9 @@ npm run dev
 # 执行代码检查
 npm run lint
 
+# 执行主题核心逻辑单元测试（需 Node.js ≥ 22.18）
+npm run test:unit
+
 # 构建生产版本
 npm run build
 ```
@@ -67,12 +71,14 @@ npm run build
 ```text
 .
 ├── e2e/                    # Playwright 端到端测试
+├── test/                   # node:test 单元测试
 ├── server/                 # 演示服务端
 ├── src/
 │   ├── assets/             # 图片资源
 │   ├── components/         # 页面及通用组件
 │   ├── data/               # 菜单等演示数据
 │   ├── hooks/              # React Hooks
+│   ├── lib/                # 纯工具与主题核心逻辑
 │   ├── state/              # 订单状态管理
 │   ├── App.tsx             # 应用入口组件
 │   ├── i18n.ts             # 中英文文案

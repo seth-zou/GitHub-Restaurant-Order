@@ -245,7 +245,9 @@ test.describe('儿童模式 - E2E 验收测试', () => {
   test('REQ-006: 儿童模式与夜间模式、老人模式同时开启时叠加无冲突', async ({ page }) => {
     await gotoMenuPreview(page)
     await page.locator(TOGGLE).first().click()
+    // 主题入口现为弹层：打开后选择夜间，弹层关闭后再操作老人模式
     await page.getByTestId('theme-toggle').click()
+    await page.getByTestId('theme-option-dark').click()
     await page.getByRole('button', { name: '切换至老人模式' }).click()
 
     const root = page.locator('html')
@@ -260,7 +262,9 @@ test.describe('儿童模式 - E2E 验收测试', () => {
     const fontSize = await root.evaluate((el) => Number.parseFloat(getComputedStyle(el).fontSize))
     expect(fontSize).toBeGreaterThan(16)
 
+    // 切回白天并关闭老人模式
     await page.getByTestId('theme-toggle').click()
+    await page.getByTestId('theme-option-light').click()
     await page.getByRole('button', { name: '切换至常规模式' }).click()
     await expect(root).not.toHaveClass(/(?:^|\s)dark(?:\s|$)/)
     await expect(root).not.toHaveClass(/(?:^|\s)elderly(?:\s|$)/)
@@ -270,14 +274,17 @@ test.describe('儿童模式 - E2E 验收测试', () => {
   test('REQ-006.1: 单独关闭夜间模式不影响儿童模式', async ({ page }) => {
     await gotoMenuPreview(page)
     await page.locator(TOGGLE).first().click()
+    // 主题入口现为弹层：打开后选择夜间
     await page.getByTestId('theme-toggle').click()
+    await page.getByTestId('theme-option-dark').click()
 
     const root = page.locator('html')
     await expect(root).toHaveClass(/(?:^|\s)child(?:\s|$)/)
     await expect(root).toHaveClass(/(?:^|\s)dark(?:\s|$)/)
 
-    // 关闭夜间模式
+    // 关闭夜间模式：重新打开弹层选择白天
     await page.getByTestId('theme-toggle').click()
+    await page.getByTestId('theme-option-light').click()
     await expect(root).not.toHaveClass(/(?:^|\s)dark(?:\s|$)/)
     await expect(root).toHaveClass(/(?:^|\s)child(?:\s|$)/)
   })
