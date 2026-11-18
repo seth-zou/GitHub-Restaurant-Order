@@ -1,398 +1,323 @@
 # Review Summary
 
-- 本次需求: 为沸点火锅点单 SPA 提供可发现的浅色/深色主题入口，保证夜间模式可读性、对比度、交互一致性，并持久化用户选择。
-- 需求类型: UX / 前端主题状态 / 可访问性 / 本机状态持久化。
-- 变更面: Functional Requirements、UX Design、Backend/Data、NFR / DFX、Open Questions、Traceability、Test Cases；不涉及: API Design、Metrics；待确认: 无阻塞项。
-- 变更面判断依据: 澄清文档与 PRD 明确全局主题入口、默认策略和本机持久化；仓库 `AGENTS.md`、`src/hooks/useThemeMode.ts`、`src/components/ThemeToggle.tsx`、`src/index.css`、`index.html` 与 `e2e/theme-mode.spec.ts` 确认这是浏览器端 SPA 的全局展示与状态能力，无后端接口。
-- 差异判断: 产品形态 / 站点 / 环境 / 版本差异——不涉及新增差异；依据为单仓 React SPA、hash 路由、GitHub Pages 子路径部署，无原生端、多站点或后端业务链路证据。
+- 本次需求: 沸点火锅点单 SPA（`seth-zou/GitHub-Restaurant-Order`）支持多币种（CNY/USD/HKD/JPY）的展示与加算，币种由桌台所属门店决定、整桌统一、顾客不可切换。
+- 需求类型: UX / 前端展示与金额计算 / 文案配置 / 兼容性 / 可访问性。
+- 变更面: Functional Requirements、UX Design、Backend/Data（前端数据契约与演示数据口径）、NFR / DFX、Test Cases、Traceability、Open Questions；不涉及: API Design（无对外接口）、Metrics（无新增埋点/看板）；待确认: 无阻塞项（3 项不影响本次交付的技术待设计登记在 Open Questions）。
+- 变更面判断依据: 需求文本「支持多币种的展示和加算」；仓库证据 `src/lib/currency.ts`（金额唯一出口）、`src/lib/utils.ts`（历史 `money()` 写死 ¥）、`src/data/menu.ts`（`stores`/`tableStore`，价格裸数字）、`src/components/{MenuView,CartPanel,OrderView,CheckoutView,TopBar}.tsx`（金额展示点）、`src/state/orderReducer.ts`（`BIND_TABLE` 写入 `currency`）、`src/types.ts`（`CartItem.currency`/`AppState.currency`）、`src/i18n.ts`（`currency.*`/`store.*`/`common.coupon`/`checkout.discount_rule`）、`e2e/multi-currency.spec.ts`、`AGENTS.md`「多币种约定」；上游产物 `需求澄清Spec` v1、`PRD 文档` v1、`参考代码与变更说明` v1、`多币种参考实现预览` v1。
+- 差异判断: 站点差异 —— 涉及：4 类门店币种不同（A08=CNY、B12=USD、C06=HKD、D03=JPY），是本次需求的判定核心；依据 `src/data/menu.ts` 的 `stores`/`tableStore` 与 `e2e/multi-currency.spec.ts`。产品形态差异（单 React SPA，无原生端）、环境差异（无多环境配置）、版本差异（`main` @ `58ee88a` → 参考实现 `ed2eb1c`）—— 不涉及。
 - 本次变更关键信息:
-  - Spec 采纳用户选择 > 系统 `prefers-color-scheme` > 浅色的优先级；无保存值时只在初始化读取一次系统偏好，不监听运行时变化。
-  - Spec 采纳 `html.dark` + 集中暗色语义映射作为当前主题维护方式，新增组件必须复用已映射语义类或同步扩展集中映射，不引入第二套暗色实现。
-  - 本机契约固定为 `localStorage.theme-mode=light|dark`、`html.dark`、`data-theme-mode` 与 `meta[name="theme-color"]`；非法值按未保存处理。
-  - 明确 `localStorage` 不可用时降级为会话内存态，不阻塞点餐；不迁移既有数据、不做跨设备同步。
-  - 新增可执行功能与非功能测试用例，覆盖入口、默认值、优先级、持久化、降级、视觉、老人模式、双语和业务回归。
-- Review 重点: 默认与持久化优先级、集中暗色映射维护约束、对比度与焦点、存储失败降级、老人模式叠加、React 挂载前初始化、业务流程不受影响。
+  - 金额收敛到唯一出口 `@/lib/currency`：`formatMoney` 负责展示，`sumLineTotals` 负责逐行四舍五入后加总，`calcDiscount`/`calcPayable` 负责优惠与应付；禁止页面内直接拼符号或各自 `reduce`。
+  - 币种只有一个来源：绑定桌台时由门店写入 `state.currency`，条目加入购物车时锁定 `CartItem.currency`，全链路只读，不出现混币加算，不提供切换入口。
+  - 优惠「满 100 减 30」与会员券金额按门店币种同面额展示与计算（USD → `$100.00` 减 `$30.00`），文案经 i18n 插值，不写死货币符号。
+  - JPY 与 CNY 同为 `¥`，必须通过币种代码（顶栏胶囊、支付成功 aria-label）区分；`?currency=USD|HKD|JPY` 作为预览/E2E 直达入口保留。
+  - 未绑定/未知桌台回落 CNY，与改造前行为一致；无持久化订单数据，不涉及数据迁移。
+  - 与上游澄清稿 REQ-002.2 存在一处偏差：当前 `formatMoney` 用 `toFixed(2)`，**未实现千分位**（`1234` 输出 `$1234.00` 而非 `$1,234.00`），但代码注释与澄清稿声称有千分位。本 Spec 以仓库现状为验收基线并登记为 OQ-4，Review 需确认是否要求本轮补齐。
+- Review 重点: 金额加算口径与明细一致性、优惠同面额口径、混币防护、JPY/CNY 可区分性、千分位偏差（OQ-4）、未绑定桌台回落、双语与夜间/老人模式下金额完整可见。
 
 ## Scope Note
 
-- Implemented sections: Functional Requirements, UX Design, Backend/Data, NFR / DFX, Test Cases, Traceability, Open Questions。
-- Not involved: API Design, Metrics。
-- Needs confirmation: 无。
-- Reason: 上游澄清文档已关闭业务契约，仓库与参考实现确认变更集中于前端主题状态、全局视觉映射和浏览器本机偏好存储。
+- Implemented sections: Functional Requirements、UX Design、Backend/Data、NFR / DFX、Test Cases、Traceability、Open Questions。
+- Not involved: API Design（应用无后端业务接口，`server/` 仅健康检查，币种不经接口传输）；Metrics（需求未提出新增埋点或看板）。
+- Needs confirmation: 无阻塞项；OQ-1~OQ-3 为接入真实价目/支付前的技术待设计，OQ-4 为文档与实现偏差，均不影响本次前端交付。
+- Reason: 上游澄清文档已关闭 5 项业务口径，仓库与参考实现确认变更集中在浏览器端 SPA 的金额格式化、加总、币种状态、门店数据映射、页面展示与 i18n 文案。
 
 ---
 
-# Spec: 支持夜间模式
+# Spec: 支持多币种的展示和加算
 
 ## 1. Context
 
-本 Spec 基于「需求澄清文档」v1 与「PRD 文档」v2，目标仓库为 `seth-zou/GitHub-Restaurant-Order`，基线 `main` @ `27ffc339`，工作分支 `feat/c4d40c0e-c18o`。
+输入模式：模式 A（存在上游需求澄清文档）。
 
-Spec 阶段增量：
+- 上游文档：`需求澄清Spec`（`需求设计/需求澄清Spec/PRD 文档.md`）、`PRD 文档`（`需求设计/PRD 文档/PRD 文档.md`）、`参考代码与变更说明`（`需求设计/参考代码与变更说明/参考代码与变更说明`）、`多币种参考实现预览`（`需求设计/多币种参考实现预览/index.html`）。
+- 交付上下文：仓库 `seth-zou/GitHub-Restaurant-Order`，基线 `main` @ `58ee88a`，工作分支 `feat/d0971ca8-aoye`，参考实现提交 `ed2eb1c`。背景、目标、范围与业务规则以澄清文档为准，本文只记录 Spec 阶段的增量与最终契约。
 
-- 关闭 TD-1：采用 `tailwind.config.js` 的 `darkMode: 'class'` 与 `src/index.css` 的集中暗色语义映射；暂不重构为逐组件 `dark:` 变体，也不新增组件内联夜间色值。
-- 关闭 TD-2：无用户选择时只在应用初始化读取一次 `prefers-color-scheme`；系统偏好的运行时变化不自动联动，本次不做。
-- 参考 commit `8577edb` 已验证入口、状态、持久化、集中映射和 E2E 的最小可行实现；本 Spec 将其收敛为下游实现、测试与评审契约。
+Spec 阶段增量（相对澄清文档）：
 
-背景、目标、范围与业务规则以「需求澄清文档」为准；本文只记录 Spec 增量、产品契约与验收。
+1. 固化金额展示样式为「符号前缀 + 2 位小数」，千分位按 OQ-4 处理（当前实现未实现千分位，验收以未实现为准，是否补齐待决策）。
+2. 固化加算口径：小计 = Σ round(单价, 2) × 数量，最后再 round 到 2 位；明细行金额之和必须等于小计；应付 = 小计 − 优惠，下限钳制 0。
+3. 固化币种来源与回落：门店 → 桌台 → `state.currency`，未知/未绑定桌台回落默认门店 CNY。
+4. 固化可区分性与文案插值要求：JPY/CNY 靠币种代码区分；优惠与券文案必须通过 i18n 插值，不得写死货币符号。
+5. 补充可执行测试用例口径（E2E 用例表 + 边界/异常用例），供下游开发自测与 E2E 节点复用。
 
 ## 2. Goals and Non-Goals
 
-沿用需求澄清文档的目标与非目标，并做以下 Spec 级收窄：
+- Goals（增量）：所有金额展示点收敛到单一格式化与加算实现；四类门店主流程金额同一币种且合计正确；优惠与活动文案不串币；JPY 与 CNY 可区分。
+- 沿用需求澄清文档的目标与非目标。
+- Non-Goals（增量）：不实现汇率换算、顾客切换币种、一单多币种、支付渠道集成、后端币种配置中心、按区域独立定价的新规则。
 
-- Goals：把暗色 token 维护方式、系统偏好读取时机、本机契约和测试口径固化为下游唯一契约。
-- Non-Goals：不做系统偏好运行时持续监听；不做语义 token 大规模重构；不做跨设备同步、后端持久化、多主题皮肤或埋点扩展。
+## 3. Glossary
 
-## 3. Functional Requirements
+| 术语 | 含义 |
+| --- | --- |
+| 门店定价币种 | 门店属性，决定该门店所有桌台的展示与结算币种 |
+| 整桌币种 | 绑定桌台后确定的唯一币种，写入 `AppState.currency`，全链路只读 |
+| 条目币种 | 购物车/订单条目在加入时锁定的币种（`CartItem.currency`），用于防止混币加算 |
+| 同面额活动 | 优惠门槛与面额使用门店币种的数字面额，仅替换货币符号（¥100 减 ¥30 → $100 减 $30） |
+| 可区分性 | CNY 与 JPY 同为 `¥` 时，必须通过币种代码等非符号信息区分 |
+| 金额唯一出口 | `src/lib/currency.ts` 中的 `formatMoney / sumLineTotals / calcDiscount / calcPayable / roundMoney` |
 
-### REQ-001: 全局主题入口
+## 4. Functional Requirements
 
-- User Story: 作为就餐用户，我希望在首页、欢迎页和主流程顶栏找到主题入口，以便暗光环境下一键切换到可读的夜间模式。
+### REQ-001: 绑定桌台确定整桌币种
+
+- User Story: 作为到店顾客，我希望进入点单后系统自动使用本桌门店的币种，以免误看到其他区域的价格。
 - Priority: P0
-- Description: 应用在 `#/home`、`#/welcome` 与主流程视图的顶栏提供同一语义的浅色/深色切换入口。点击后全局主题立即切换，无需刷新页面。
+- Description: 绑定桌台时依据桌台所属门店确定整桌币种并写入应用状态；此后所有金额读取该状态，页面不提供任何切换入口。演示映射：A08→星河里(CNY)、B12→海港城(USD)、C06→旺角(HKD)、D03→新宿(JPY)。
 
 Acceptance Requirements (EARS):
 
-- REQ-001.1: The system shall 在 `#/home`、`#/welcome` 和 `#/menu`、`#/order`、`#/checkout` 任一视图提供可聚焦、可触发的主题入口。
-- REQ-001.2: When 用户触发主题入口，the system shall 立即切换浅色/深色并同步所有可见界面。
-- REQ-001.3: If 入口交互失败或后续渲染异常，the system shall 保持当前主题、路由与既有业务状态，不产生订单、购物车或桌台数据变更。
-- REQ-001.4: When 入口获得焦点，the system shall 显示可辨识的焦点状态并保持触控目标符合现有组件规范。
+- REQ-001.1: When 用户绑定任一桌台，the system shall 将整桌币种设置为该桌台所属门店的定价币种。
+- REQ-001.2: The system shall 在菜单、规格弹窗、购物车、订单、结账、支付成功与顶栏中使用同一整桌币种渲染全部金额。
+- REQ-001.3: If 桌台未知或未绑定，the system shall 回落到默认门店币种（CNY）且不报错、不阻断点单。
+- REQ-001.4: The system shall 不提供顾客可切换币种的交互控件（按钮、下拉或等价控件）。
+- REQ-001.5: When 顾客在同一桌台多次加菜，the system shall 为每个条目写入当前整桌币种，不出现混币条目。
 
 Gherkin:
 
 ```gherkin
-Scenario: 从主流程顶栏切换主题
-  Given 用户已进入 #/menu 并处于浅色模式
-  When 用户通过键盘触发主题入口
-  Then 全局界面立即切换为夜间模式，且无需刷新页面
-  And 购物车、订单、桌台和路由保持不变
+Scenario: 美元门店顾客绑定桌台后看到美元价格
+  Given 门店"海港城店"的定价币种为 USD，且其桌台 B12 在首页可选
+  When 顾客绑定桌台 B12 并进入点餐视图
+  Then 菜单中每道菜的价格以 "$" 前缀展示并保留 2 位小数
+  And 顶栏币种胶囊可读到 "USD"
+  And 页面不存在可切换币种的控件
+
+Scenario: 未知桌台回落到人民币
+  Given 顾客进入的点单状态没有绑定桌台
+  When 系统渲染菜单视图
+  Then 全部金额以 "¥" 展示
+  And 页面不报错，仍可加入购物车
 ```
 
-### REQ-002: 默认主题策略
+### REQ-002: 全站金额统一展示格式
 
-- User Story: 作为首次访问用户，我希望默认主题贴近系统偏好，以便减少暗光环境下的手动调整。
+- User Story: 作为顾客，我希望所有金额格式一致，便于核对自己点了多少钱。
 - Priority: P0
-- Description: 无有效保存选择时，应用在初始化读取一次浏览器 `prefers-color-scheme`。系统偏好为 dark 时首屏使用夜间模式；系统偏好为 light、未声明或能力不可用时使用浅色。保存的用户选择始终优先于系统偏好。
+- Description: 所有金额经 `formatMoney(value, currency)` 输出「货币符号 + 2 位小数」，覆盖菜品列表价、规格弹窗价、购物车明细行/小计/预估合计、订单明细/总额、结账明细/小计/优惠/应付/确认支付按钮、支付成功实付、顶栏购物车金额、会员券金额、优惠规则说明。
 
 Acceptance Requirements (EARS):
 
-- REQ-002.1: When 本地无 `theme-mode` 且 `prefers-color-scheme` 为 dark，the system shall 在首屏渲染夜间模式。
-- REQ-002.2: When 本地无 `theme-mode` 且系统偏好为 light、未声明或读取能力不可用，the system shall 在首屏渲染浅色模式。
-- REQ-002.3: When 本地保存值为 `light` 或 `dark`，the system shall 优先应用该保存值并忽略本次系统偏好。
-- REQ-002.4: When `localStorage.theme-mode` 为非法值，the system shall 将其视为未保存并按默认策略推断。
-- REQ-002.5: While 应用运行期间系统 `prefers-color-scheme` 发生变化，the system shall 不自动切换；后续访问按已有优先级重新初始化。
+- REQ-002.1: The system shall 对所有币种统一保留 2 位小数，包括 JPY。
+- REQ-002.2: The system shall 在 CNY/USD/HKD/JPY 下分别使用 `¥`、`$`、`HK$`、`¥` 作为前缀符号。
+- REQ-002.3: If 金额为 0（如未达优惠门槛），the system shall 仍以同币种格式展示（如 `-¥0.00`），不省略货币单位。
+- REQ-002.4: The system shall 不在组件内直接拼接货币符号或使用 `toFixed` 等自定义格式化。
+- REQ-002.5: When 金额绝对值 ≥ 1000，the system shall 按 OQ-4 的决策输出——默认维持当前实现（无千分位，如 `$1234.00`）；若 OQ-4 决策为补齐，则输出 `$1,234.00`。
 
 Gherkin:
 
 ```gherkin
-Scenario: 首次访问跟随系统偏好
-  Given 本地未保存 theme-mode
-  And 系统 prefers-color-scheme 为 dark
-  When 用户进入应用
-  Then 首屏渲染夜间模式
-  And data-theme-mode 为 dark
+Scenario: 港币门店金额格式
+  Given 顾客在 HKD 门店点单
+  When 顾客查看菜品卡价格
+  Then 价格以 "HK$" 前缀展示并保留 2 位小数，如 "HK$68.00"
 ```
 
-```gherkin
-Scenario: 用户选择优先于系统偏好
-  Given 系统 prefers-color-scheme 为 dark
-  And 本地 theme-mode 已保存为 light
-  When 用户进入应用
-  Then 首屏渲染浅色模式
-```
+### REQ-003: 同币种加算与合计一致性
 
-### REQ-003: 主题状态与本机持久化
-
-- User Story: 作为返回用户，我希望应用记住我上次选择的亮度模式，以便刷新或再次进入时继续使用熟悉的界面。
+- User Story: 作为同桌就餐者，我希望购物车与订单合计准确，能看到自己实付金额。
 - Priority: P0
-- Description: 用户显式切换后，应用在本设备浏览器保存 `theme-mode=light|dark`，并同步 `html.dark`、`data-theme-mode` 和 `meta[name="theme-color"]`。后续同浏览器访问优先应用保存值；存储不可用时降级为当次内存态。
+- Description: 小计 = Σ(round(单价, 2) × 数量) 后再 round 到 2 位（`sumLineTotals`）；顶栏购物车金额、购物车小计、订单总额、结账小计使用同一函数。
 
 Acceptance Requirements (EARS):
 
-- REQ-003.1: When 用户显式切换到 dark 或 light，the system shall 更新 `html.dark`、`data-theme-mode` 与 `meta[name="theme-color"]`。
-- REQ-003.2: When 用户显式选择后刷新或再次进入同一浏览器，the system shall 渲染该保存值对应的模式。
-- REQ-003.3: When 应用加载，the system shall 在 React 挂载前应用主题，避免用户可见的主题闪烁。
-- REQ-003.4: If `localStorage` 读取或写入不可用，the system shall 在当次页面会话内继续支持主题切换，不抛出用户可见错误，不阻塞点餐主流程。
-- REQ-003.5: When 本机持久化不可用且用户切换主题，the system shall 不向网络或后端上报主题数据；下次进入按默认策略推断。
+- REQ-003.1: The system shall 保证结账明细各行金额之和等于菜品小计，且小计与应付使用同一币种。
+- REQ-003.2: The system shall 在合计时只累加与整桌币种一致的条目。
+- REQ-003.3: When 某条目申请取消且已批准，the system shall 在订单总额与结账小计中排除该条目。
+- REQ-003.4: The system shall 对浮点尾数做 2 位四舍五入，使同一数据在购物车、订单、结账三处合计一致。
 
 Gherkin:
 
 ```gherkin
-Scenario: 显式切换后保持偏好
-  Given 用户处于浅色模式
-  When 用户切换到夜间模式并刷新页面
-  Then 页面仍渲染夜间模式
-  And localStorage.theme-mode 为 dark
-  And html 具有 dark 类与 data-theme-mode=dark
+Scenario: USD 门店结账金额加算
+  Given 顾客在 USD 门店的点单记录为 琥珀嫩牛肉 $42.00 × 2、田园蔬菜拼盘 $28.00、柠檬青桔饮 $18.00
+  And 门店活动为满 $100.00 减 $30.00
+  When 顾客进入结账视图
+  Then 菜品小计展示 "$130.00"
+  And 优惠展示 "-$30.00"
+  And 应付合计展示 "$100.00"
+  And 确认支付按钮文案包含 "$100.00"
 ```
 
-```gherkin
-Scenario: 存储不可用时降级
-  Given 浏览器禁用或限制 localStorage
-  When 用户在当前会话切换主题
-  Then 主题在当前会话内立即生效
-  And 页面不出现存储失败错误
-  And 点餐、订单与结账流程可继续使用
-```
+### REQ-004: 优惠与活动文案随币种同面额
 
-### REQ-004: 夜间模式视觉与交互一致性
-
-- User Story: 作为暗光环境用户，我希望夜间模式覆盖完整界面并保持品牌识别与操作层级，以便清晰查看菜品、价格、订单和结账信息。
+- User Story: 作为顾客，我希望看到本店真实可用的优惠金额，而不是其他币种的面额。
 - Priority: P0
-- Description: 夜间模式覆盖首页、欢迎页、点餐、订单、结账、服务弹层、购物车、演示控制台、风险提示、Toast、主 CTA 和移动端底部导航。暗色界面保持品牌暖色识别、卡片层级、图标语义、状态冗余、焦点可见性和既有触控目标。
+- Description: 「满 100 减 30」与会员「含 30 菜品券」在非人民币门店按同面额展示与计算（`DISCOUNT_THRESHOLD=100`、`DISCOUNT_AMOUNT=30`）；优惠额不超过小计。
 
 Acceptance Requirements (EARS):
 
-- REQ-004.1: When 夜间模式激活，the system shall 对核心页面、弹层、Toast、底部导航和主 CTA 应用一致暗色语义。
-- REQ-004.2: When 夜间模式展示正文、价格、订单状态、售罄提示、风险提示或按钮文案，the system shall 保持不低于 WCAG AA 的对比度。
-- REQ-004.3: When 用户在夜间模式使用键盘、Dialog、Toast、老人模式或既有交互，the system shall 保持可辨识焦点、正确层级和可操作触控范围。
-- REQ-004.4: When 夜间模式包含图片、遮罩、状态标识或辅助说明，the system shall 保持关键信息不被遮挡且不以颜色作为唯一识别方式。
-- REQ-004.5: If 任一新增或既有浅色类缺少集中暗色映射并造成界面残留不可读浅色块，the system shall 视为不符合本需求。
+- REQ-004.1: When 门店币种为 USD，the system shall 展示「菜品满 $100.00 减 $30.00」并在会员弹窗展示「含 $30.00 菜品券」。
+- REQ-004.2: When 小计低于门槛 100（同币种面额），the system shall 展示同币种 0 优惠且不扣减应付。
+- REQ-004.3: If 优惠面额大于小计，the system shall 将应付下限钳制为同币种 0 值，不出现负数实付。
+- REQ-004.4: The system shall 不在任何币种下展示与其不匹配的货币符号（如 USD 门店出现 `¥`）。
+- REQ-004.5: The system shall 通过 i18n 插值（`common.coupon`、`checkout.discount_rule`）传入格式化金额，zh/en 两套文案同步。
 
-Gherkin:
+### REQ-005: JPY 与 CNY 的可区分性
 
-```gherkin
-Scenario: 夜间模式覆盖弹层与导航
-  Given 夜间模式已激活
-  When 用户打开购物车弹层或服务弹层
-  Then 弹层表面、文字、边框、按钮和遮罩使用暗色语义
-  And 移动端底部导航保持可读且状态可辨识
-```
-
-### REQ-005: 双语与状态反馈
-
-- User Story: 作为中文或英文用户，我希望主题入口有对应语言的可访问名称，以便理解当前操作目标而不依赖颜色判断。
+- User Story: 作为日本门店顾客，我希望明确知道账单是日元而非人民币。
 - Priority: P1
-- Description: 主题入口的可访问名称与任何新增用户可见文案走 i18n，中文和英文同步维护。主题状态至少通过图标变化、`aria-label` 或界面模式提供非颜色唯一反馈。
+- Description: JPY 与 CNY 共用 `¥`，必须提供非符号信息。
 
 Acceptance Requirements (EARS):
 
-- REQ-005.1: When 当前语言为中文或英文，the system shall 显示对应语言的主题入口可访问名称。
-- REQ-005.2: When 主题状态变化，the system shall 至少通过图标变化、`aria-label` 或界面模式提供非颜色唯一感知。
-- REQ-005.3: If 新增主题相关用户可见文案，the system shall 同步提供 zh/en 文案，不使用未翻译硬编码文本。
+- REQ-005.1: The system shall 在顶栏币种胶囊中同时展示币种名称与 ISO 代码（如「币种 日元 JPY · ¥」）。
+- REQ-005.2: The system shall 为支付成功页实付金额提供包含币种代码的无障碍文本（如 `JPY ¥100.00`）。
+- REQ-005.3: If 屏幕阅读器仅能读取金额文本，the system shall 仍能读出币种代码。
+- REQ-005.4: The system shall 不只依赖颜色或符号区分币种。
 
-Gherkin:
+### REQ-006: 双语与跨模式一致
 
-```gherkin
-Scenario: 英文环境下理解切换目标
-  Given 应用语言为英文且当前为浅色模式
-  When 用户聚焦主题入口
-  Then 可访问名称为英文的“切换至夜间模式”语义
-  And 图标与界面模式提供非颜色冗余反馈
-```
+- User Story: 作为双语用户或夜间/老人模式用户，我希望切换语言或模式后价格语义不变。
+- Priority: P1
+- Description: 金额与币种不随语言、主题、老人模式改变；文案插值使用同一金额格式化结果。
 
-## 4. UX Design
+Acceptance Requirements (EARS):
 
-### 体验目标与设计原则
+- REQ-006.1: When 用户在中/英间切换语言，the system shall 保持整桌币种、金额数值与格式不变。
+- REQ-006.2: The system shall 在浅色、深色与老人模式下保持价格与币种胶囊完整可见（不截断、不被遮挡）。
+- REQ-006.3: If 语言为英文，the system shall 使用英文文案（如 `Includes $30.00 dish coupon`、`Dishes over $100.00 get $30.00 off`）并保持同一金额格式。
 
-- 夜间模式是全局主题，不是局部反色；页面、卡片、面板、弹层、导航和反馈在同一模式下保持统一层级。
-- 保持「暖纸沸点」的品牌识别：暗色底与暖色前景保留温度，辣红继续用于动作、选择、风险或服务语义，琥珀用于进度或注意语义。
-- 颜色不是唯一状态载体；售罄、风险、选中、等待和焦点仍依赖文字、图标、数值或形状冗余。
-- 老人模式与夜间模式独立叠加：字号增强由 `html.elderly` 控制，暗色配色由 `html.dark` 控制。
+## 5. UX Design
 
-### 页面与入口范围
+### 5.1 体验目标与设计原则
 
-| 位置 | 交互 | 预期反馈 | 约束 |
-|---|---|---|---|
-| `#/home` | 右上主题入口 | 全局立即切换 | 不遮挡桌台选择或主要操作 |
-| `#/welcome` | 右上主题入口 | 全局立即切换 | 不遮挡欢迎信息与进入点餐入口 |
-| `#/menu`、`#/order`、`#/checkout` | 主流程顶栏主题入口 | 全局立即切换 | 与语言、老人模式、服务、演示控制台共存 |
-| Dialog / Toast / 购物车 / 演示控制台 | 跟随全局状态 | 无独立主题入口 | 不出现弹层与页面主题冲突 |
-| 移动端底部导航 | 跟随全局状态 | 背景、图标、文字和激活态可读 | 保留 safe area 与既有触控目标 |
+- 沿用设计系统 `boiling-point-order` 的视觉语言（暖纸底、白卡、辣红用于价格等决策信息、琥珀色用于进度与提示），本次不新增设计 token、不改主题。
+- 币种“只读可见”：不提供切换控件，但顶栏以低干扰方式表达币种来源，避免顾客误以为可改价。
+- 不新增独立页面或弹层；所有变化落在既有卡片与列表内。
 
-### 核心体验路径
+### 5.2 页面 / 模块影响面
 
-1. 用户进入应用，系统按保存值或系统偏好渲染首屏。
-2. 用户通过主题入口切换，界面即时响应，入口目标与可访问名称同步变化。
-3. 用户刷新或再次进入，应用优先使用显式保存值。
-4. 用户在开启老人模式或切换语言后继续使用主题，字号、文案与暗色语义同时生效。
+| 模块 | 位置 | 变化 | 类型 |
+| --- | --- | --- | --- |
+| `HomeView` | 桌台卡片 | 展示各桌台所属门店（可推断币种），不展示具体金额 | 影响页面（文案） |
+| `WelcomeView` | 进入点餐提示 | 绑定后 `lastMessage` 带桌台，币种由状态决定 | 仅说明 |
+| `MenuView` | 菜品卡价格、规格弹窗价格 | 改为门店币种格式化；加购条目写入 `currency` | 影响页面 |
+| `CartPanel` | 明细行、菜品小计、预估合计（桌面侧栏 + 移动端弹层） | 改用 `formatMoney` + `sumLineTotals` | 影响页面 |
+| `OrderView` | 明细行金额、订单总额 | 改用统一加总与格式化 | 影响页面 |
+| `CheckoutView` | 明细、小计、优惠（含规则说明）、应付、确认支付按钮、支付成功实付 | 全部币种化；实付 aria-label 含币种代码 | 影响页面 |
+| `App` | 顶栏/移动端购物车按钮金额；`?currency=` 预览直达 | 币种化；预览预置 Mock 订单 | 影响页面 |
+| `TopBar` | 币种胶囊；会员弹窗菜品券金额 | 只读币种说明（名称 + ISO 代码 + 符号）；券金额随币种 | 影响页面 |
+| `i18n` | `common.coupon`、`checkout.discount_rule`、`currency.*`、`store.*` | 插值化，去掉写死 `¥30` | 影响页面（文案） |
 
-### 分支路径与异常
+### 5.3 核心体验路径与分支路径
 
-| 场景 | 系统响应 |
-|---|---|
-| 首次访问、无保存值 | 初始化读取一次系统偏好；无匹配或不可用为浅色 |
-| 非法保存值 | 视为未保存，按默认策略推断 |
-| `localStorage` 不可用 | 当次内存态切换可用；无用户可见错误；下次进入按默认策略 |
-| 入口异常或渲染异常 | 保持当前主题与业务状态；不改变订单、购物车、桌台或路由 |
-| 系统偏好运行时变化 | 本次不自动联动；用户仍可手动切换 |
+- 主路径：首页选择桌台 → 进入点餐（顶栏出现币种胶囊）→ 菜单看价 → 加购（侧栏/弹层）→ 提交订单（订单总额）→ 结账（小计/优惠/应付）→ 确认支付 → 支付成功（实付）。
+- 分支路径：
+  - 未达优惠门槛：优惠行展示 `-<币种>0.00`，应付 = 小计。
+  - 未知/未绑定桌台：回落 CNY，流程不中断。
+  - 深链接/预览：`?currency=USD|HKD|JPY` 直接进入对应门店币种的目标视图，等价于绑定对应桌台。
+  - 取消申请已批准：该条目从不计入合计。
+  - 语言切换：文案切换，金额与币种不变。
 
-### 文案与状态说明
+### 5.4 交互与状态说明
 
-- 当前浅色模式入口使用“切换至夜间模式”语义；当前夜间模式入口使用“切换至浅色模式”语义。
-- zh/en 文案保存在 `src/i18n.ts` 的 `common.*` 分组并同步维护。
-- 图标使用 Moon / Sun 的语义变化；界面模式本身是辅助状态反馈，不要求新增 Toast。
+- 币种胶囊：位于顶栏桌台信息右侧，`sm` 断点以上展示；内容为「币种 <地名称> <ISO 代码> · <符号>」；`title` 为「<门店> 门店定价，整桌按该币种展示与加总，不可自行切换」。不做可点击控件。
+- 优惠行：`会员菜品券` 后追加小号次级文字规则说明「菜品满 $100.00 减 $30.00」；优惠值带 `-` 前缀。
+- 金额颜色：价格与应付保持辣红强调；优惠同为强调色但带负号；辅助说明用次级文字色。禁止用颜色单独表达币种。
+- 金额不换行、不被截断；长金额（≥1000）在窄屏下允许缩小字号但保持完整显示。
 
-## 5. Backend/Data
+### 5.5 关键文案
 
-本需求不涉及后端服务、API、权限、订单数据结构或服务端存储变更。
+| Key | 中文 | 英文 |
+| --- | --- | --- |
+| `currency.label` | 币种 | Currency |
+| `currency.CNY/USD/HKD/JPY` | 人民币 CNY / 美元 USD / 港币 HKD / 日元 JPY | Chinese Yuan CNY / US Dollar USD / Hong Kong Dollar HKD / Japanese Yen JPY |
+| `currency.hint_store` | {{store}} 门店定价，整桌按该币种展示与加总，不可自行切换 | Priced by {{store}}; the whole table shows and adds up in this currency and cannot be switched |
+| `store.*` | 沸点 · 星河里店 / 海港城店 / 旺角店 / 新宿店 | Boiling Point · Xingheli / Harbour City / Mong Kok / Shinjuku |
+| `common.coupon` | 含 {{amount}} 菜品券 | Includes {{amount}} dish coupon |
+| `checkout.discount_rule` | 菜品满 {{threshold}} 减 {{amount}} | Dishes over {{threshold}} get {{amount}} off |
 
-浏览器端状态与存储契约如下：
+## 6. Backend/Data
 
-| 对象 | 契约 | 优先级 / 校验 | 兼容性 |
-|---|---|---|---|
-| `localStorage.theme-mode` | 仅保存 `light` 或 `dark` | 用户显式选择 > 系统偏好 > `light`；非法值按未保存处理 | 新增 key，不改 `i18nextLng`、`elderly-mode` 或购物车/订单内存数据 |
-| `html.dark` | dark 为唯一全局主题类 | 随有效主题同步 | 复用 Tailwind `darkMode: 'class'` |
-| `data-theme-mode` | 值为 `light` 或 `dark` | 随有效主题同步 | 供测试与状态检查使用 |
-| `meta[name="theme-color"]` | light 状态使用浅色基线，dark 状态使用暗色基线 | 随有效主题同步 | 不作为业务判断依据 |
-| 初始化读取 | 在 React 挂载前读取一次 | 本地有效保存值优先，否则读取 `prefers-color-scheme`，失败为浅色 | 不引入阻塞网络请求 |
+> 本应用业务逻辑全部在浏览器内存中运行，`server/` 仅为健康检查；本节定义前端数据契约与演示数据口径，不涉及服务端存储、接口或迁移。
 
-迁移与回滚：
+| 对象 | 变化 | 说明 |
+| --- | --- | --- |
+| `CurrencyCode` | 新增类型 | `'CNY' \| 'USD' \| 'HKD' \| 'JPY'`，从 `src/lib/currency.ts` 导出并由 `src/types.ts` 转出 |
+| `CurrencyMeta` / `CURRENCIES` | 新增 | 每币种 `code / symbol / numeric / labelKey`；`numeric` 用于辅助文本 |
+| `isCurrencyCode` | 新增 | 外部输入（如 URL `?currency=`）校验守卫，非法值不生效 |
+| `CartItem.currency` | 新增必填 | 加入购物车时锁定整桌币种 |
+| `AppState.currency` | 新增必填 | 初始值与 `BIND_TABLE` 时由门店决定，全链路只读 |
+| `stores` / `tableStore` | 新增 | 桌台 → 门店 → 定价币种（A08/B12/C06/D03），演示数据 |
+| `getStoreByTable` / `getCurrencyByTable` / `getStoreByCurrency` | 新增 | 未知桌台回落 `stores[0]`（CNY）；币种反查门店用于预览 |
+| `DISCOUNT_THRESHOLD` / `DISCOUNT_AMOUNT` | 新增常量 | 100 / 30，同面额使用，不随币种换算 |
+| `formatMoney` / `roundMoney` / `sumLineTotals` / `calcDiscount` / `calcPayable` / `describeMoney` | 新增 | 金额唯一出口 |
+| `money()` | 降级为兼容别名 | 默认 CNY，转发 `formatMoney`；新代码不得使用 |
+| `?currency=` 预览 | 新增行为 | `USD|HKD|JPY|CNY` 预置对应门店桌台与 Mock 订单，直达 `#/menu`、`#/order`、`#/checkout` |
 
-- 不迁移既有数据；旧版本没有 `theme-mode` 时按默认策略推断。
-- 存储失败不产生数据损坏；回滚实现时遗留的 `theme-mode` 仅是本机偏好数据，不作为服务端契约，可安全忽略。
+数据兼容：
 
-## 6. NFR / DFX
+- 无持久化订单/购物车数据（仅内存态），不涉及历史数据迁移或回填。
+- `localStorage` 仅保存 `i18nextLng`、`elderly-mode`、`theme-mode`，本次不新增键、不改变既有语义。
+- 未知/未绑定桌台回落 CNY，保证既有入口与既有 E2E 行为不变。
 
-### 可访问性与视觉
+## 7. NFR / DFX
 
-- 正文、价格、关键状态、风险提示、按钮文案和必要 UI 边界满足 WCAG AA。
-- 焦点可见、键盘可操作，交互目标保持现有组件规范。
-- 状态反馈不得只依赖颜色；暗色适配必须覆盖弹层、Toast、底部导航和主 CTA。
+| 类别 | 要求 | 验收方法 |
+| --- | --- | --- |
+| 正确性 | 明细之和 = 小计；应付 = 小计 − 优惠；优惠 ∈ [0, 小计] | E2E MC-005/MC-006 + 边界用例 MC-010/MC-011 |
+| 浮点稳定 | 逐行四舍五入到 2 位后再累加，避免 `0.1+0.2` 类尾数 | E2E 金额文本精确断言；代码评审确认仅一个加总出口 |
+| 兼容性 | 未绑定/未知桌台回落 CNY；既有 33 条 E2E 全部通过 | `npx playwright test` 全量通过 |
+| 可访问性 | 支付成功实付金额 aria-label 含币种代码；胶囊有可读 title；对比度与焦点不降级 | E2E MC-004/MC-009 + 夜间模式既有用例 |
+| 可维护性 | 金额格式化与加总只有一个出口，禁止分散 `reduce` 与硬编码符号 | `npm run lint`（`--max-warnings 0`）零警告 + 代码评审 |
+| 性能 | 纯前端纯函数计算，不引入网络请求，首屏无明显影响 | `npm run build` 通过，bundle 无显著增长 |
+| 国际化 | zh/en 文案同步；金额不随语言变化；i18n 不写死货币符号 | E2E MC-009 + 文案扫描 |
 
-### 兼容性
+## 8. Test Cases
 
-- 仅作用浏览器端 React SPA；不改变健康检查 Express 服务。
-- 支持现代浏览器环境；`localStorage` 不可用时按会话内存态降级。
-- 老人模式可叠加；hash 深链接、浏览器前进/后退和 GitHub Pages 子路径部署不受影响。
+### 8.1 E2E（已实现于 `e2e/multi-currency.spec.ts`）
 
-### 性能
+| 用例 | 覆盖 REQ | 场景 | 预期 |
+| --- | --- | --- | --- |
+| MC-001 | REQ-001、REQ-002 | 绑定 A08（CNY） | 菜单金额 `¥`，无 `$`/`HK$`；胶囊含 CNY |
+| MC-002 | REQ-001、REQ-003 | 绑定 B12（USD）并加购 | 胶囊含 USD；购物车 `$68.00`；购物车无 `¥` |
+| MC-003 | REQ-002 | 绑定 C06（HKD） | 胶囊含 HKD；展示 `HK$68.00` |
+| MC-004 | REQ-002、REQ-005 | 绑定 D03（JPY） | 胶囊含 JPY；金额 `¥68.00`（2 位小数） |
+| MC-005 | REQ-003、REQ-004 | `?currency=USD#/checkout` | 小计 `$130.00`、优惠 `-$30.00`、应付 `$100.00`；确认支付按钮含 `$100.00` |
+| MC-006 | REQ-003、REQ-004 | 四币种结账页 | 单张账单只出现一种币种符号 |
+| MC-007 | REQ-004 | B12 会员弹窗 | 「含 $30.00 菜品券」 |
+| MC-008 | REQ-001.4 | C06 任意页面 | 无切换币种按钮 / 无 `combobox` |
+| MC-009 | REQ-006 | `?currency=HKD#/checkout` 切换英文 | 标题 `Review Your Bill`，金额仍为 `HK$130.00` |
 
-- 主题初始化在 React 挂载前完成，不引入阻塞式网络或后端请求。
-- 主题切换遵循既有 250ms 颜色过渡，无明显卡顿或可见主题闪烁。
+### 8.2 待补充用例（下游实现/测试节点必做）
 
-### 安全与隐私
+| 用例 | 覆盖 REQ | 类型 | 场景 | 预期 |
+| --- | --- | --- | --- | --- |
+| MC-010 | REQ-004.2 | 边界 | `?currency=USD#/checkout` 且小计 < 100（如仅 1 项） | 优惠 `-$0.00`，应付 = 小计，支付按钮金额一致 |
+| MC-011 | REQ-003.4 | 正确性 | 单价含小数的条目 × 非整数数量或多行累加 | 明细行之和与页面小计逐分一致，无浮点尾数 |
+| MC-012 | REQ-001.3 | 异常 | 直接访问 `#/menu`（未绑定桌台） | 全部金额 `¥`，可正常加购，无报错 |
+| MC-013 | REQ-001.3 | 异常 | 访问 `?currency=XXX#/menu`（非法币种） | 回落 CNY，不白屏、不报错 |
+| MC-014 | REQ-002.5 | 边界 | 金额 ≥ 1000（如数量放大） | 按 OQ-4 决策输出；无截断、无换行错位 |
+| MC-015 | REQ-006.2 | 兼容 | HKD 门店切换夜间模式 + 老人模式 | 价格、优惠、应付、币种胶囊完整可见 |
+| MC-016 | REQ-005.1 | 可访问性 | JPY 结账页读取实付元素 aria-label | 文本包含 `JPY` 与金额 |
+| MC-017 | REQ-001.5 | 数据一致性 | 同一桌台连续加购 3 个条目后提交订单 | 所有条目 `currency` 与 `state.currency` 一致，订单总额 = 购物车小计 |
+| MC-018 | REQ-003.3 | 分支 | 订单条目取消获批准后查看结账 | 该条目不计入明细与合计 |
 
-- 主题偏好仅保存在本设备浏览器，不上报、不同步、不关联用户身份。
-- 不新增 Cookie、埋点或第三方存储。
+回归范围：`e2e/super-spicy.spec.ts`、`e2e/theme-mode.spec.ts`、`e2e/view-routing.spec.ts` 共 33 条既有用例必须全绿；合计目标 42 条（既有 + MC-001~MC-009），新增 MC-010~MC-018 后目标 ≥ 51 条。
 
-### 发布与回滚
+### 8.3 非自动化检查
 
-- 功能可随前端版本直接发布；无数据库迁移和服务端灰度。
-- 回滚仅移除入口与主题状态逻辑即可；本机遗留 `theme-mode` 不阻塞旧版本，也不需要清理脚本。
+- 文案扫描：`src/i18n.ts` 的 zh/en 中不得出现写死的 `¥30`、`$30` 等金额字面量，只保留插值占位。
+- 代码扫描：`src/` 下除 `lib/currency.ts` 与 `lib/utils.ts`（兼容别名）外，不出现 `toFixed` 或拼接货币符号。
 
-## 7. Test Cases
+## Open Questions
 
-### TC-001: 三类入口可达并即时切换（REQ-001）
+| ID | 问题 | 影响 | 建议负责人 | 是否阻塞 |
+|---|---|---|---|---|
+| OQ-1（TD-1） | 真实门店价目是各区域独立定价，还是同数字面额仅换符号？当前演示为后者 | 接入真实价目后金额与优惠口径 | PM | 否 |
+| OQ-2（TD-2） | 生产环境「桌台 → 门店 → 币种」的权威数据来源与同步时机；当前为前端静态映射 | 币种来源正确性、新增门店效率 | RD | 否 |
+| OQ-3（TD-3） | 真实支付渠道对多币种与 JPY 2 位小数的支持边界 | 支付金额传参与对账 | RD | 否 |
+| OQ-4 | 千分位：澄清稿 REQ-002.2 与代码注释要求 `$1,234.00`，当前 `formatMoney` 使用 `toFixed(2)` 实际输出 `$1234.00`。是否本轮补齐？建议：本轮按现状验收、在 Spec 记为已知偏差，下一迭代统一补齐（避免与 E2E 现断言冲突） | 金额展示一致性、E2E 断言 | PM / RD | 否（影响 REQ-002.5 验收口径，需在本轮 Review 决策） |
 
-| 项 | 内容 |
-|---|---|
-| 前置条件 | 应用可访问，初始为浅色模式 |
-| 步骤 | 分别进入 `#/home`、`#/welcome`、`#/menu`、`#/order`、`#/checkout`；检查入口可见、可聚焦；触发切换 |
-| 预期 | 每个入口可操作；切换立即生效；路由和业务状态不变 |
-| 类型 | Playwright E2E + 人工键盘检查 |
+## Traceability
 
-### TC-002: 系统深色偏好默认夜间模式（REQ-002）
-
-| 项 | 内容 |
-|---|---|
-| 前置条件 | 清空本站 `localStorage`，浏览器 `colorScheme=dark` |
-| 步骤 | 首次进入应用 |
-| 预期 | `html` 含 `dark`；`data-theme-mode=dark`；首屏无浅色闪烁 |
-| 类型 | Playwright E2E |
-
-### TC-003: 无声明或系统浅色默认浅色（REQ-002）
-
-| 项 | 内容 |
-|---|---|
-| 前置条件 | 清空本站 `localStorage`；系统偏好为 light、未声明或模拟不可用 |
-| 步骤 | 首次进入应用 |
-| 预期 | `html` 不含 `dark`；`data-theme-mode=light`；界面为浅色 |
-| 类型 | Playwright E2E / 单元或组件测试 |
-
-### TC-004: 用户选择优先于系统偏好（REQ-002、REQ-003）
-
-| 项 | 内容 |
-|---|---|
-| 前置条件 | `colorScheme=dark`，`localStorage.theme-mode=light` |
-| 步骤 | 进入应用并刷新 |
-| 预期 | 应用浅色模式，不因系统深色偏好切换 |
-| 类型 | Playwright E2E |
-
-### TC-005: 非法保存值按默认策略（REQ-002、REQ-003）
-
-| 项 | 内容 |
-|---|---|
-| 前置条件 | `localStorage.theme-mode` 设置为非法值；分别模拟系统 dark / light |
-| 步骤 | 进入应用 |
-| 预期 | 非法值被忽略；按系统偏好或浅色兜底推断 |
-| 类型 | 单元测试 / Playwright E2E |
-
-### TC-006: 刷新与再次进入保持选择（REQ-003）
-
-| 项 | 内容 |
-|---|---|
-| 前置条件 | 用户已显式切换到 dark |
-| 步骤 | 刷新页面后再次切换到 light，并再次刷新 |
-| 预期 | 每次进入保持对应选择；`html.dark`、`data-theme-mode`、`localStorage.theme-mode` 一致 |
-| 类型 | Playwright E2E |
-
-### TC-007: 存储失败降级为内存态（REQ-003）
-
-| 项 | 内容 |
-|---|---|
-| 前置条件 | 模拟读取或写入 `localStorage` 抛错 |
-| 步骤 | 初始化应用、切换主题、继续点餐操作 |
-| 预期 | 当次主题切换可用；无用户可见错误；业务流程继续；刷新后按默认策略 |
-| 类型 | 单元测试 / 组件测试 + 人工回归 |
-
-### TC-008: 夜间模式全量界面与对比度（REQ-004）
-
-| 项 | 内容 |
-|---|---|
-| 前置条件 | 夜间模式激活 |
-| 步骤 | 巡检首页、欢迎页、点餐、订单、结账、服务弹层、购物车、演示控制台、风险提示、Toast、主 CTA 和移动端底部导航；检查正文、价格、状态、边框、图片与遮罩 |
-| 预期 | 无不可读浅色残留；WCAG AA 对比度通过；层级、品牌识别和状态冗余保持 |
-| 类型 | 视觉审查 + 对比度检查 + Playwright E2E |
-
-### TC-009: 键盘焦点与弹层交互（REQ-001、REQ-004）
-
-| 项 | 内容 |
-|---|---|
-| 前置条件 | 夜间模式激活 |
-| 步骤 | 用键盘聚焦主题入口；打开并关闭 Dialog、Toast、购物车或服务弹层 |
-| 预期 | 焦点可辨识；层级正确；弹层文字、按钮和关闭操作可读可用 |
-| 类型 | 人工键盘检查 + Playwright E2E |
-
-### TC-010: 老人模式与双语叠加（REQ-004、REQ-005）
-
-| 项 | 内容 |
-|---|---|
-| 前置条件 | 开启老人模式，夜间模式激活 |
-| 步骤 | 分别切换 zh/en；检查字号、半透明文字、按钮触控目标、焦点、主题入口可访问名称 |
-| 预期 | 字号增强与暗色配色叠加生效；对比度不劣化；zh/en 可访问名称同步 |
-| 类型 | 人工检查 + Playwright E2E |
-
-### TC-011: 业务与路由回归（全部 REQ）
-
-| 项 | 内容 |
-|---|---|
-| 前置条件 | 浅色与夜间模式分别激活 |
-| 步骤 | 覆盖桌台绑定、菜单选择、购物车、提交订单、服务、订单取消/进度、结账、演示控制台、hash 深链接与前进/后退 |
-| 预期 | 业务规则、路由和内存态不因主题切换改变；`npm run lint`、`npm run build`、全量 Playwright 通过 |
-| 类型 | 既有回归 + Playwright E2E + 构建/静态检查 |
-
-## 8. Open Questions
-
-| ID | 问题 | 影响 | 决议 / 建议负责人 |
-|---|---|---|---|
-| OQ-001 | 是否演进为语义 token 体系？ | 长期维护成本；不影响本次用户可见行为 | 本次不演进；新增颜色类时同步集中映射。后续大规模组件改造时由 RD/Design 另立需求。 |
-| OQ-002 | 是否持续监听系统偏好运行时变化？ | 可选增强；会影响状态优先级语义 | 本次不做。如需增强，由 PM 另立需求并重新定义用户选择、系统偏好和会话状态的优先级。 |
-
-## 9. Traceability
-
-| REQ | 关联设计/状态 | NFR | 测试 |
-|---|---|---|---|
-| REQ-001 | UX 页面与入口范围；`ThemeToggle` 语义入口 | 可访问性 | TC-001, TC-009, TC-011 |
-| REQ-002 | Backend/Data 初始化读取与优先级 | 兼容性 | TC-002, TC-003, TC-004, TC-005 |
-| REQ-003 | Backend/Data 本机存储契约与迁移回滚 | 性能、兼容性、隐私、发布回滚 | TC-004, TC-005, TC-006, TC-007 |
-| REQ-004 | UX 一致性、视觉语义；集中暗色映射 | 可访问性、视觉、性能 | TC-008, TC-009, TC-010, TC-011 |
-| REQ-005 | UX 文案与状态反馈 | 可访问性、兼容性 | TC-010, TC-011 |
-
-## API Design
-
-本需求不涉及对外 API、SDK、Webhook、CLI 或客户集成契约变更。
-
-## Metrics
-
-本需求不涉及新增或变更埋点、日志、Dashboard 或指标口径。
+| REQ | 页面/模块 | 代码 | E2E / 用例 |
+| --- | --- | --- | --- |
+| REQ-001 | 桌台绑定、顶栏、全链路 | `src/data/menu.ts`、`src/state/orderReducer.ts`、`src/App.tsx`、`src/components/TopBar.tsx` | MC-001、MC-002、MC-008、MC-012、MC-013、MC-017 |
+| REQ-002 | 全站金额展示 | `src/lib/currency.ts`、`src/lib/utils.ts` | MC-001~MC-004、MC-014 |
+| REQ-003 | 购物车、订单、结账 | `src/lib/currency.ts`、`src/components/{CartPanel,OrderView,CheckoutView}.tsx` | MC-002、MC-005、MC-006、MC-011、MC-018 |
+| REQ-004 | 结账优惠、会员弹窗、文案 | `src/lib/currency.ts`、`src/components/{CheckoutView,TopBar}.tsx`、`src/i18n.ts` | MC-005、MC-006、MC-007、MC-010 |
+| REQ-005 | 顶栏胶囊、支付成功 | `src/components/{TopBar,CheckoutView}.tsx` | MC-004、MC-016 |
+| REQ-006 | 全部视图 | `src/i18n.ts`、`src/index.css`（主题映射） | MC-009、MC-015 |
+| NFR：兼容/维护 | 构建与静态检查 | `package.json`、`playwright.config.ts` | `npm run lint`、`npm run build`、全量 `npx playwright test` |
