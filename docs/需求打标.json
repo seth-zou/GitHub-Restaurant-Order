@@ -1,0 +1,44 @@
+{
+  "classification": "A",
+  "dimensions": {
+    "scope": {
+      "status": "PASS",
+      "reason": "变更集中在 14 个文件（1 个新增工具、5 个页面组件、状态/类型/演示数据/i18n/AGENTS/E2E），均属前端展示层与前端状态层，不超过 3 个架构层。"
+    },
+    "interface": {
+      "status": "PASS",
+      "reason": "无对外接口；内部契约由 formatMoney/sumLineTotals/calcDiscount/calcPayable 明确签名与 CurrencyCode 类型约束，币种来源与精度规则在 PRD 中唯一确定，仅需参数级调整。"
+    },
+    "pattern": {
+      "status": "PASS",
+      "reason": "复用已有分支 feat/d0971ca8-aoye 的实现范式（门店-桌台-币种映射 + 集中金额工具 + 组件透传 currency），并复用仓库既有 i18n、E2E 与设计系统组件模式。"
+    },
+    "testability": {
+      "status": "PASS",
+      "reason": "可用 Playwright 断言金额文本、币种徽标、合计/优惠数值、无混币与无切换入口；已落地 MC-001~MC-010 共 10 项并通过。"
+    },
+    "dependency": {
+      "status": "PASS",
+      "reason": "不新增任何运行时依赖，不依赖汇率服务、密钥或后端接口；所有数据为前端静态演示数据。"
+    },
+    "safety": {
+      "status": "PASS",
+      "reason": "纯展示与内存态计算，不涉及真实支付扣款、用户隐私写入、权限模型或不可逆数据变更；错误可通过回滚前端版本恢复。"
+    },
+    "closure": {
+      "status": "PASS",
+      "reason": "变更限于单一仓库 seth-zou/GitHub-Restaurant-Order，无需跨服务或发版顺序协调。"
+    }
+  },
+  "summary": "三币种展示与计算需求为单仓前端补齐型需求：Gate 通过，作用域集中、契约明确、可自动化验证、无新增外部依赖与高风险领域。",
+  "missingInfo": [],
+  "warnSelfCheck": [],
+  "actionPlan": {
+    "ifA": "1) 复用 feat/d0971ca8-aoye 并收敛币种为 CNY/USD/JPY；2) 在 src/lib/currency.ts 固化币种精度与统一格式化/加总/优惠接口；3) 门店-桌台-币种映射写入 state.currency，并向 TopBar/MenuView/CartPanel/OrderView/CheckoutView 透传；4) 同步 zh/en 文案与 ?currency=USD|JPY 预览；5) 新增 e2e/multi-currency.spec.ts 覆盖三币种展示、JPY 精度、满减、不混币、无切换入口与双语；6) 执行 tsc/lint/build 与全量 Playwright 后由人 Review。",
+    "blockers": [],
+    "suggestions": [
+      "真实门店定价接入时，将 stores/tableStore 替换为后端下发，保持 state.currency 契约不变。",
+      "如未来扩展 HKD 等货币，需同步 CurrencyCode、fractionDigits、i18n 与 E2E，并重新确认优惠门槛口径。"
+    ]
+  }
+}
