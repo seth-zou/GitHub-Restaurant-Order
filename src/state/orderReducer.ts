@@ -1,10 +1,12 @@
 import i18next from 'i18next'
 import { uid } from '@/lib/utils'
+import { getCurrencyByTable } from '@/data/menu'
 import type { AppAction, AppState } from '@/types'
 
 export const initialState: AppState = {
   view: 'home',
   table: null,
+  currency: getCurrencyByTable(null),
   diners: ['姚乾', '林溪', '陈默'],
   cart: [],
   orderItems: [],
@@ -27,7 +29,7 @@ const localeForLanguage = (lang: string) => (lang === 'en' ? 'en-US' : 'zh-CN')
 export function orderReducer(state: AppState, action: AppAction): AppState {
   switch (action.type) {
     case 'BIND_TABLE':
-      return { ...state, table: action.table, view: 'welcome', lastMessage: i18next.t('message.bind_table', { table: action.table }) }
+      return { ...state, table: action.table, currency: getCurrencyByTable(action.table), view: 'welcome', lastMessage: i18next.t('message.bind_table', { table: action.table }) }
     case 'SET_VIEW':
       return { ...state, view: action.view }
     case 'ADD_CART': {

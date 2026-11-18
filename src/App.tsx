@@ -16,8 +16,8 @@ import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { useElderlyMode } from '@/hooks/useElderlyMode'
 import { initialViewFromHash, useViewRoute } from '@/hooks/useViewRoute'
 import { orderReducer, initialState } from '@/state/orderReducer'
-import { products } from '@/data/menu'
-import { money } from '@/lib/utils'
+import { getCurrencyByTable, getStoreByCurrency, products, stores, tableStore } from '@/data/menu'
+import { formatMoney, sumLineTotals } from '@/lib/currency'
 import type { AppState, ViewName } from '@/types'
 
 function createInitialState(): AppState {
@@ -32,15 +32,41 @@ function createInitialState(): AppState {
       ...initialState,
       table: 'A08',
       view: 'menu',
-      cart: [{ uid: 'preview-item', productId: product.id, name: i18next.t(product.name), price: product.price, quantity: 1, image: product.image, spec, orderedBy: '姚乾' }],
+      cart: [{ uid: 'preview-item', productId: product.id, name: i18next.t(product.name), price: product.price, currency: stores[0].currency, quantity: 1, image: product.image, spec, orderedBy: '姚乾' }],
       lastMessage: initialState.lastMessage,
+    }
+  }
+
+  // 币种预览：?currency=USD|JPY 直接进入该币种门店的目标视图（Mock 币种数据，便于设计/验收直达页面；不做汇率换算）
+  const previewCurrency = search.get('currency')?.toUpperCase()
+  const previewStore = getStoreByCurrency(previewCurrency)
+  if (previewStore) {
+    const previewTable = Object.keys(tableStore).find((code) => tableStore[code] === previewStore.id) ?? 'A08'
+    const product = products[2]
+    const spec = [i18next.t('menu.option.full'), i18next.t('menu.option.original')].join(' · ')
+    const orderItems = [product, products[6], products[9]].map((item, index) => ({
+      uid: `preview-order-${item.id}`, productId: item.id, name: i18next.t(item.name), price: item.price,
+      currency: previewStore.currency, quantity: index === 0 ? 2 : 1, image: item.image, spec,
+      orderedBy: initialState.diners[index % initialState.diners.length], stage: 'submitted' as const,
+    }))
+    const targetView: ViewName = requestedView && requestedView !== 'home' ? requestedView : 'menu'
+    return {
+      ...initialState,
+      table: previewTable,
+      currency: previewStore.currency,
+      view: targetView,
+      cart: targetView === 'menu' || targetView === 'welcome'
+        ? [{ uid: 'preview-item', productId: product.id, name: i18next.t(product.name), price: product.price, currency: previewStore.currency, quantity: 1, image: product.image, spec, orderedBy: '姚乾' }]
+        : [],
+      orderItems: targetView === 'order' || targetView === 'checkout' ? orderItems : [],
     }
   }
 
   // 深链接：直接以 #/welcome 等地址打开时，先绑定示例桌台再进入对应视图；
   // home 无需桌台，其余流程视图（welcome/menu/order/checkout）需要桌台上下文。
   if (requestedView && requestedView !== 'home') {
-    return { ...initialState, table: 'A08', view: requestedView }
+    const table = 'A08'
+    return { ...initialState, table, currency: getCurrencyByTable(table), view: requestedView }
   }
 
   return initialState
@@ -53,7 +79,7 @@ export default function App() {
   const [serviceOpen, setServiceOpen] = useState(false)
   const [consoleOpen, setConsoleOpen] = useState(false)
   const [cartOpen, setCartOpen] = useState(false)
-  const cartTotal = state.cart.reduce((sum, item) => sum + item.price * item.quantity, 0)
+  const cartTotal = sumLineTotals(state.cart, state.currency)
   const waitingServices = state.services.filter((service) => service.status === 'waiting').length
 
   // 视图 ↔ URL hash 双向同步；未绑定桌台时只有 home 可达，其余地址回落到 home
@@ -100,6 +126,7 @@ export default function App() {
         table={state.table}
         view={state.view}
         serviceCount={waitingServices}
+        currency={state.currency}
         language={i18n.language}
         elderly={elderly}
         onToggleLanguage={toggleLanguage}
@@ -112,11 +139,11 @@ export default function App() {
       {state.view === 'menu' && (
         <main className="mx-auto grid max-w-7xl gap-6 px-4 py-5 pb-28 lg:grid-cols-3 lg:px-6 lg:py-7 lg:pb-8">
           <div className="lg:col-span-2">
-            <MenuView diners={state.diners} soldOut={state.soldOut} onAdd={(item) => dispatch({ type: 'ADD_CART', item })} />
+            <MenuView diners={state.diners} soldOut={state.soldOut} currency={state.currency} onAdd={(item) => dispatch({ type: 'ADD_CART', item })} />
           </div>
           <aside className="hidden lg:block">
             <div className="sticky top-28">
-              <CartPanel items={state.cart} onQuantity={(uid, delta) => dispatch({ type: 'CHANGE_QTY', uid, delta })} onSubmit={submitOrder} />
+              <CartPanel items={state.cart} currency={state.currency} onQuantity={(uid, delta) => dispatch({ type: 'CHANGE_QTY', uid, delta })} onSubmit={submitOrder} />
               <div className="mt-4 rounded-2xl border border-amber-400/30 bg-amber-100/70 p-4 text-sm text-charcoal-700">
                 <p className="font-bold">{t('common.collab_title')}</p>
                 <p className="mt-1 leading-6 text-charcoal-500">{t('common.collab_desc')}</p>
@@ -130,6 +157,7 @@ export default function App() {
         <OrderView
           items={state.orderItems}
           stage={state.orderStage}
+          currency={state.currency}
           onAddMore={() => changeView('menu')}
           onCancel={(uid) => dispatch({ type: 'REQUEST_CANCEL', uid })}
           onCheckout={() => changeView('checkout')}
@@ -137,7 +165,7 @@ export default function App() {
       )}
 
       {state.view === 'checkout' && (
-        <CheckoutView items={state.orderItems} paid={state.paid} onPay={() => dispatch({ type: 'PAY' })} onBack={() => changeView('order')} />
+        <CheckoutView items={state.orderItems} paid={state.paid} currency={state.currency} onPay={() => dispatch({ type: 'PAY' })} onBack={() => changeView('order')} />
       )}
 
       <ServiceSheet open={serviceOpen} requests={state.services} onOpenChange={setServiceOpen} onCall={(service) => dispatch({ type: 'CALL_SERVICE', service })} />
@@ -156,7 +184,7 @@ export default function App() {
 
       <Dialog open={cartOpen} onOpenChange={setCartOpen}>
         <DialogContent title={t('cart.dialog_title')}>
-          <div className="mt-5"><CartPanel compact items={state.cart} onQuantity={(uid, delta) => dispatch({ type: 'CHANGE_QTY', uid, delta })} onSubmit={submitOrder} /></div>
+          <div className="mt-5"><CartPanel compact items={state.cart} currency={state.currency} onQuantity={(uid, delta) => dispatch({ type: 'CHANGE_QTY', uid, delta })} onSubmit={submitOrder} /></div>
         </DialogContent>
       </Dialog>
 
@@ -164,7 +192,7 @@ export default function App() {
         {state.view === 'menu' && state.cart.length > 0 && (
           <Button onClick={() => setCartOpen(true)} className="h-12 rounded-full px-5 shadow-float">
             <span className="relative"><ShoppingBasket size={19} /><span className="absolute -right-2 -top-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-400 px-1 text-xs text-charcoal-900">{state.cart.length}</span></span>
-            {t('common.view_cart')} · {money(cartTotal)}
+            {t('common.view_cart')} · {formatMoney(cartTotal, state.currency)}
           </Button>
         )}
       </div>
