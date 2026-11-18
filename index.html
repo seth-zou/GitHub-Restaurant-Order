@@ -36,6 +36,20 @@
         document.documentElement.dataset.themePreference = preference;
         var themeMeta = document.querySelector('meta[name="theme-color"]');
         if (themeMeta) themeMeta.setAttribute('content', mode === 'dark' ? '#12100d' : '#fbf5ea');
+        // 挂载前同步儿童模式，避免刷新时出现闪烁
+        var childMode = false;
+        try {
+          childMode = localStorage.getItem('child-mode') === 'true';
+        } catch (e) {
+          // localStorage 不可用时尝试 sessionStorage fallback
+          try {
+            childMode = sessionStorage.getItem('child-mode-fallback') === 'true';
+          } catch (e2) {
+            childMode = false;
+          }
+        }
+        document.documentElement.classList.toggle('child', childMode);
+        document.documentElement.dataset.childMode = childMode ? 'on' : 'off';
       })();
     </script>
   </head>

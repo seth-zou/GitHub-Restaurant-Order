@@ -637,7 +637,7 @@ test.describe('主题体验增强 - E2E 验收', () => {
     await page.getByTestId('theme-option-dark').click()
     await expect(toggle).toHaveAttribute('aria-label', 'Appearance: Dark. Open settings')
 
-    const elderlyToggle = page.getByRole('button', { name: '切换至老人模式' })
+    const elderlyToggle = page.getByRole('button', { name: 'Switch to elderly mode' })
     await expect(elderlyToggle).toBeVisible()
     await elderlyToggle.click()
     await expect(page.locator('html')).toHaveClass(/(?:^|\s)elderly(?:\s|$)/)
