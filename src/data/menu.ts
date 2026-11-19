@@ -16,12 +16,12 @@ export const tableAreas: Record<string, string> = {
 export const products: Product[] = [
   {
     id: 'p1', name: 'menu.p1.name', category: 'menu.cat.broth', price: 68,
-    description: 'menu.p1.desc', image: hotpot, badge: 'menu.badge.popular',
+    description: 'menu.p1.desc', image: hotpot, badge: 'menu.badge.popular', isHotpotBase: true,
     options: { flavor: ['menu.option.tomato_beef', 'menu.option.mushroom_beef'], spicy: ['menu.option.mild', 'menu.option.medium', 'menu.option.heavy', 'menu.option.super_spicy'] },
   },
   {
     id: 'p2', name: 'menu.p2.name', category: 'menu.cat.broth', price: 59,
-    description: 'menu.p2.desc', image: broth, badge: 'menu.badge.signature',
+    description: 'menu.p2.desc', image: broth, badge: 'menu.badge.signature', isHotpotBase: true,
     options: { spicy: ['menu.option.mild', 'menu.option.medium', 'menu.option.heavy', 'menu.option.super_spicy'] },
   },
   {
@@ -67,3 +67,8 @@ export const products: Product[] = [
 ]
 
 export const getProduct = (id: string) => products.find((product) => product.id === id)
+
+/** 火锅底料选项：与菜单共用商品数据、价格与售罄状态，按菜单顺序展示。 */
+export const hotpotBases = products.filter((product) => product.isHotpotBase)
+
+export const MAX_HOTPOT_BASES = 2

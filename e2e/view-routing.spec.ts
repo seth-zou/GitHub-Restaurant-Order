@@ -1,10 +1,12 @@
 import { test, expect, type Page } from '@playwright/test'
+import { confirmHotpotBase } from './helpers/hotpot-base'
 
-/** 从首页绑定 A08 桌台并进入点餐视图（menu）。 */
+/** 从首页绑定 A08 桌台并进入点餐视图（menu），同时完成底料必选环节。 */
 async function enterMenu(page: Page) {
   await page.goto('/')
   await page.getByRole('button', { name: /A08/ }).first().click() // home → welcome
   await page.getByRole('button', { name: /进入点餐|Enter/ }).click() // welcome → menu
+  await confirmHotpotBase(page)
 }
 
 test.describe('视图 URL 路由 - hash 模式', () => {
@@ -38,9 +40,11 @@ test.describe('视图 URL 路由 - hash 模式', () => {
     await expect(page.getByRole('heading', { name: '鎏金番茄鸳鸯锅' })).toBeVisible()
   })
 
-  test('ROUTE-005: 深链接直达 #/menu（自动绑定示例桌台）', async ({ page }) => {
+  test('ROUTE-005: 深链接直达 #/menu（自动绑定示例桌台，并弹出底料必选）', async ({ page }) => {
     await page.goto('/#/menu')
     await expect(page).toHaveURL(/#\/menu$/)
+    await expect(page.getByRole('heading', { name: '先选一锅底料' })).toBeVisible()
+    await confirmHotpotBase(page)
     await expect(page.getByRole('heading', { name: '鎏金番茄鸳鸯锅' })).toBeVisible()
   })
 

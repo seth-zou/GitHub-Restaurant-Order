@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page } from '@playwright/test'
+import { confirmHotpotBase } from './helpers/hotpot-base'
 
 /**
  * 主题体验增强（白天 / 夜间 / 跟随系统）E2E 验收用例。
@@ -65,6 +66,9 @@ async function chooseTheme(page: Page, preference: Preference) {
 
 /** 在点餐页加入一份锅底，用于验证主题切换不影响业务状态与流程。 */
 async function addBrothToCart(page: Page) {
+  // 点餐页首次进入会自动弹出底料必选弹窗（modal 焦点陷阱），先完成再操作
+  const baseDialog = page.getByRole('dialog').filter({ hasText: '先选一锅底料' })
+  if (await baseDialog.isVisible()) await confirmHotpotBase(page)
   await page.getByRole('button', { name: '锅底', exact: true }).click()
   await page.locator('article').first().locator('button').last().click()
   const dialog = page.getByRole('dialog')
@@ -220,6 +224,12 @@ test.describe('主题体验增强 - E2E 验收', () => {
       await expect(toggle).toBeVisible()
       await expect(toggle).toBeEnabled()
       await expect(toggle).toHaveAttribute('aria-label', /外观模式：/)
+
+      // 点餐页首次进入会自动弹出底料必选弹窗（modal 焦点陷阱），先完成再测主题入口焦点
+      if (route.endsWith('/menu')) {
+        const baseDialog = page.getByRole('dialog').filter({ hasText: '先选一锅底料' })
+        if (await baseDialog.isVisible()) await confirmHotpotBase(page)
+      }
 
       await toggle.focus()
       await expect(toggle).toBeFocused()
@@ -394,6 +404,7 @@ test.describe('主题体验增强 - E2E 验收', () => {
 
       // 重新进入另一个主流程视图，偏好仍应生效
       await page.goto('/#/menu')
+      await confirmHotpotBase(page)
       await expectTheme(page, resolved, preference)
       expect(await page.evaluate(() => localStorage.getItem('theme-mode'))).toBe(preference)
     }
@@ -411,6 +422,7 @@ test.describe('主题体验增强 - E2E 验收', () => {
     })
 
     await page.goto('/#/menu')
+    await confirmHotpotBase(page)
     await expectTheme(page, 'dark', 'system')
     await expect(page.getByRole('alert')).toHaveCount(0)
 
@@ -446,6 +458,7 @@ test.describe('主题体验增强 - E2E 验收', () => {
     })
 
     await page.goto('/#/menu')
+    await confirmHotpotBase(page)
     await expectTheme(page, 'light', 'light')
 
     await chooseTheme(page, 'dark')
@@ -473,6 +486,7 @@ test.describe('主题体验增强 - E2E 验收', () => {
       }
 
       await openRouteFresh(page, '/#/menu')
+      await confirmHotpotBase(page)
       await expect(page.getByRole('heading', { name: '鎏金番茄鸳鸯锅' })).toHaveCSS('color', 'rgb(247, 241, 230)')
       await expectReadableAA(page, page.getByRole('heading', { name: '鎏金番茄鸳鸯锅' }))
 
@@ -495,6 +509,7 @@ test.describe('主题体验增强 - E2E 验收', () => {
     test('TC-109: 夜间模式弹层、底部导航、Toast 与状态徽章均可读', async ({ page }) => {
       await page.setViewportSize({ width: 390, height: 844 })
       await page.goto('/#/menu')
+      await confirmHotpotBase(page)
 
       await page.getByTestId('theme-toggle').click()
       const themeDialog = page.getByRole('dialog')
@@ -548,6 +563,7 @@ test.describe('主题体验增强 - E2E 验收', () => {
 
     test('TC-110: 夜间模式下键盘焦点环、Esc 关闭与焦点回归可用', async ({ page }) => {
       await page.goto('/#/menu')
+      await confirmHotpotBase(page)
       await addBrothToCart(page)
 
       const toggle = page.getByTestId('theme-toggle')
@@ -581,6 +597,7 @@ test.describe('主题体验增强 - E2E 验收', () => {
     test('TC-110.1: 主题单选组支持方向键、Home/End 与 roving tabindex', async ({ page }) => {
       await page.emulateMedia({ colorScheme: 'light' })
       await page.goto('/#/menu')
+      await confirmHotpotBase(page)
       const toggle = page.getByTestId('theme-toggle')
 
       await toggle.click()
@@ -619,6 +636,7 @@ test.describe('主题体验增强 - E2E 验收', () => {
   test('TC-111（REQ-103）: 中英文文案同步，主题与老人模式叠加生效', async ({ page }) => {
     await page.emulateMedia({ colorScheme: 'dark' })
     await page.goto('/#/menu')
+    await confirmHotpotBase(page)
 
     const toggle = page.getByTestId('theme-toggle')
     await expect(toggle).toHaveAttribute('aria-label', '外观模式：跟随系统，打开设置')
@@ -705,6 +723,7 @@ test.describe('主题体验增强 - E2E 验收', () => {
     })
 
     await page.goto('/#/menu')
+    await confirmHotpotBase(page)
     await expect(page.getByTestId('theme-toggle')).toBeVisible()
     businessRequests.length = 0
 
@@ -774,6 +793,7 @@ test.describe('主题体验增强 - E2E 验收', () => {
 
   test('TC-117（REQ-103/REQ-107）: 主题切换不产生布局跳动，也不扩大既有横向溢出', async ({ page }) => {
     await page.goto('/#/menu')
+    await confirmHotpotBase(page)
     await addBrothToCart(page)
 
     const desktopBefore = await readLayout(page)
