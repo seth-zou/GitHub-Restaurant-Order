@@ -238,10 +238,10 @@ export default function App() {
       {state.view === 'checkout' && (
         <CheckoutView
           items={state.orderItems}
-          basesTotal={basesTotal(state.orderBases)}
+          basesTotal={basesTotal(state.hotpotBases.length ? state.hotpotBases : state.orderBases)}
           onRemoveBases={() => openBasePicker()}
-          basesLabel={describeBases(state.orderBases, t)}
-          basesMissing={!state.orderBases.length}
+          basesLabel={describeBases(state.hotpotBases.length ? state.hotpotBases : state.orderBases, t)}
+          basesMissing={baseRequired && !isBaseSelectionValid(state.hotpotBases, state.soldOut)}
           paid={state.paid}
           onPay={() => dispatch({ type: 'PAY' })}
           onBack={() => changeView('order')}
