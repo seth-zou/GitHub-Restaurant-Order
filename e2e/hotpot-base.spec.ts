@@ -230,11 +230,15 @@ test.describe('火锅底料必选环节 - E2E 验收测试', () => {
     // 已选底料被售罄联动清空，全部售罄为降级场景（baseRequired=false），
     // 汇总展示「未选择底料」而非阻断提示「请先选择火锅底料」
     await expect(page.getByTestId('hotpot-base-summary').first()).toContainText('未选择底料')
-    // 再次进入点餐页验证弹窗降级提示（刷新模拟重新进入）
-    await page.goto('/#/menu')
+    // 通过汇总区「选择底料」打开弹窗验证降级提示（page.goto 会重置内存态 soldOut，
+    // 无法保持全部售罄状态，因此用 SPA 内交互打开弹窗）
+    await page.getByTestId('hotpot-base-summary').first().getByRole('button', { name: '选择底料' }).click()
     const dialog = page.getByRole('dialog').filter({ hasText: '今日底料已暂售' })
     await expect(dialog).toBeVisible()
     await expect(dialog.getByText('今日底料已暂售')).toBeVisible()
+    // 关闭弹窗（编辑模式下 Esc 可关闭）
+    await page.keyboard.press('Escape')
+    await expect(dialog).toHaveCount(0)
     // 全部售罄时不阻塞提交：加菜后提交订单应成功
     await page.getByRole('button', { name: '牛羊肉' }).click()
     await page.locator('article').first().locator('button').last().click()
