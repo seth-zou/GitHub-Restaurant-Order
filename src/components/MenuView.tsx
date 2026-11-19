@@ -167,7 +167,7 @@ export function MenuView({ child, diners, soldOut, hotpotBaseIds, onAdd, onPickB
             {selected.options?.flavor && <OptionRow label={t('menu.select_flavor')} options={selected.options.flavor} value={flavor} onChange={setFlavor} t={t} />}
             {selected.options?.spicy && <OptionRow label={t('menu.select_spicy')} icon={<Flame size={15} className="text-chili-500" />} options={selected.options.spicy} value={spicy} onChange={handleSpicyChange} t={t} />}
             <div className="mt-5"><p className="mb-3 flex items-center gap-2 text-sm font-bold text-charcoal-900"><Users size={16} />{t('menu.who_ordered')}</p><div className="flex gap-2">{diners.map((name) => <button key={name} onClick={() => setDiner(name)} className={`rounded-full px-4 py-2 text-sm font-bold ${diner === name ? 'bg-amber-400 text-charcoal-900' : 'bg-white text-charcoal-500'}`}>{name}</button>)}</div></div>
-            <Button onClick={addSelected} className="mt-6 w-full"><Plus size={17} />{selected.isHotpotBase ? t('hotpot_base.add_as_base') : t('menu.add_to_cart')}</Button>
+            <Button onClick={() => addSelected()} className="mt-6 w-full"><Plus size={17} />{selected.isHotpotBase ? t('hotpot_base.add_as_base') : t('menu.add_to_cart')}</Button>
           </>}
         </DialogContent>
       </Dialog>
